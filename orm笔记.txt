@@ -1,0 +1,94 @@
+orm框架笔记：
+
+路线图--》：
+概览 --〉核心接口-->Selector  起步
+简单查询：
+没有orm框架：手写容易出错，重构困难
+
+核心
+元数据：元数据是对模型的描述
+    三层：modelinfo->fields->fieldlinfo 三个层级
+           表        列        字段
+
+    查询接口 三个
+        DQL
+        QueryBuilder
+        QuerySeter
+
+
+Gorm 的元数据
+        两级：
+     查询接口
+        Writer 接口
+        interface 接口
+
+     事物接口：
+     Begin
+     save point支持
+
+
+     Ent 根源上是是两个方向
+什么是ORm：
+    对象-关系映射
+    帮助用户完成对象到SQL
+    框架
+    对象--》sql ：
+
+    结果集--》对象
+
+    功能：
+        SQL ：增删改成 进阶 DDL修改表结构
+        映射： 将结果集封装成对象
+        事物： 主要在于维护好 事务状态
+        元数据：SQL和映射两个部分的基石
+        AOP：处理横向关注点
+        关联关系：
+        方言：兼容不同数据库
+
+
+
+构造SQL语句
+    Beego:
+        优点：用户来说API很简单
+        缺点：耦合性强 拓展性差
+        QueryBuilder
+        必须完全按照SQL的语句的顺序来调用这个方法
+    Gorm:
+        Builder
+        Expression
+        Clause
+        Interface
+        核心是 我不知道怎么构造SQL，但你们知道
+        Build和build
+
+
+    ttOrm:
+        第一种 直接设计一叫ORM然后 不断加方法
+           orm的实例应该 是无状态的，可以被复用 是线程安全的
+           orm接口无法使用泛型
+           大而全 有新的需求 就往里加
+        第二种：大一统的Query 增删改放在一起 builder模式
+
+        第三种：直接定义Selector接口 单一职责Builder模式
+
+        Builder模式：分为中间方法和终结方法
+        链式调用
+
+        第四种：只定义Builder模式的终结方法
+
+        实现 ：builder模式
+            使用泛型做约束
+            额外引入一个QueryBuilder作为构建SQL这一个单独步骤的顶级抽象
+    SELECT 语句规范：
+        FROM
+        WHERE
+        HAVING
+        ORDER BY
+        GROUP BY
+        LIMIT 和 OFFSET
+
+
+        是否切割
+        WHERE Gorm
+              ：缺点
+
