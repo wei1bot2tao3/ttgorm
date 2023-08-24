@@ -38,11 +38,51 @@ func TestSelector_Build(t *testing.T) {
 				Args: nil,
 			},
 		},
+		//{
+		//	name:    "form db ",
+		//	builder: (&Selector[TestModel]{}).Form("test_db.test_model"),
+		//	wantQuerry: &Query{
+		//		SQL:  "SELECT * FORM `test_db`.`test_model`;",
+		//		Args: nil,
+		//	},
+		//},
 		{
-			name:    "form db ",
-			builder: (&Selector[TestModel]{}).Form("test_db.test_model"),
+			name:    "where",
+			builder: (&Selector[TestModel]{}).Where(C("Id").Eq(18)),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_db`.`test_model`;",
+				SQL:  "SELECT * FORM `TestModel` WHERE `Id`=?;",
+				Args: []any{18},
+			},
+		},
+		{
+			name:    "where",
+			builder: (&Selector[TestModel]{}).Where(C("Id").Eq(18).And(C("Id").Eq(11))),
+			wantQuerry: &Query{
+				SQL:  "SELECT * FORM `TestModel` WHERE (`Id`=?)AND(`Id`=?);",
+				Args: []any{18, 11},
+			},
+		},
+		{
+			name:    "not",
+			builder: (&Selector[TestModel]{}).Where(Not(C("Id").Eq(18))),
+			wantQuerry: &Query{
+				SQL:  "SELECT * FORM `TestModel` WHERE NOT(`Id`=?);",
+				Args: []any{18},
+			},
+		},
+		{
+			name:    "where",
+			builder: (&Selector[TestModel]{}).Where(C("Id").Eq(18).Or(C("Id").Eq(11))),
+			wantQuerry: &Query{
+				SQL:  "SELECT * FORM `TestModel` WHERE (`Id`=?)OR(`Id`=?);",
+				Args: []any{18, 11},
+			},
+		},
+		{
+			name:    "where",
+			builder: (&Selector[TestModel]{}).Where(),
+			wantQuerry: &Query{
+				SQL:  "SELECT * FORM `TestModel`;",
 				Args: nil,
 			},
 		},

@@ -89,6 +89,21 @@ Gorm 的元数据
 
 
         是否切割
-        WHERE Gorm
-              ：缺点
+        WHERE
+             Gorm： 很简单 容易写错
+             第二种：用户指定 Where的列名 缺点不支持复杂方法
+             第三种：不在接收字符串 变成结构体
+             Gorm 顶级的Expression的接口
+                Predicate： 谓词 （条件）
+             Gorm 是一个多叉树
+             ttorm ：是一个二叉树 只需要左右两边递归
+
+
+             Select 面试 ：
+                Gorm如何构造SQL： 四个抽象，Builder、Expression、Clause和Interface
+                               概括：SQL的不同部分分开构造，早拼接在一起
+                Builder模式能干啥：ORM的例子 Builder模式尤其是适合链式调用。
+                在ORM框架使用泛型有什么优点？ 能够约束用户传入的参数或者用户希望得到返回值，加强类型安全。
+                手写SQL
+
 
