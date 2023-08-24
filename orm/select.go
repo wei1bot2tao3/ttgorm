@@ -62,6 +62,7 @@ func (s *Selector[T]) Build() (*Query, error) {
 
 }
 
+// buildExpression 构建SQL的条件
 func (s *Selector[T]) buildExpression(expr Expression) error {
 
 	switch exp := expr.(type) {
