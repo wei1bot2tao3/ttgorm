@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/beego/beego/v2 v2.1.1
+	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/stretchr/testify v1.8.1
 )
 

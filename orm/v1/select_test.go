@@ -1,9 +1,10 @@
-package orm
+package v1
 
 import (
 	"database/sql"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"ttgorm/orm/internal/errs"
 )
 
 func TestSelector_Build(t *testing.T) {
@@ -18,15 +19,15 @@ func TestSelector_Build(t *testing.T) {
 			name:    "select no form",
 			builder: &Selector[TestModel]{},
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel`;",
+				SQL:  "SELECT * FORM `test_model`;",
 				Args: nil,
 			},
 		},
 		{
 			name:    "form",
-			builder: (&Selector[TestModel]{}).Form("test_model1"),
+			builder: (&Selector[TestModel]{}).Form("test_model"),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model1`;",
+				SQL:  "SELECT * FORM `test_model`;",
 				Args: nil,
 			},
 		},
@@ -34,7 +35,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "empty form ",
 			builder: (&Selector[TestModel]{}).Form(""),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel`;",
+				SQL:  "SELECT * FORM `test_model`;",
 				Args: nil,
 			},
 		},
@@ -50,7 +51,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: (&Selector[TestModel]{}).Where(C("Id").Eq(18)),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel` WHERE `Id`=?;",
+				SQL:  "SELECT * FORM `test_model` WHERE `id`=?;",
 				Args: []any{18},
 			},
 		},
@@ -58,7 +59,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: (&Selector[TestModel]{}).Where(C("Id").Eq(18).And(C("Id").Eq(11))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel` WHERE (`Id`=?)AND(`Id`=?);",
+				SQL:  "SELECT * FORM `test_model` WHERE (`id`=?)AND(`id`=?);",
 				Args: []any{18, 11},
 			},
 		},
@@ -66,7 +67,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "not",
 			builder: (&Selector[TestModel]{}).Where(Not(C("Id").Eq(18))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel` WHERE NOT(`Id`=?);",
+				SQL:  "SELECT * FORM `test_model` WHERE NOT(`id`=?);",
 				Args: []any{18},
 			},
 		},
@@ -74,7 +75,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: (&Selector[TestModel]{}).Where(C("Id").Eq(18).Or(C("Id").Eq(11))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel` WHERE (`Id`=?)OR(`Id`=?);",
+				SQL:  "SELECT * FORM `test_model` WHERE (`id`=?)OR(`id`=?);",
 				Args: []any{18, 11},
 			},
 		},
@@ -82,9 +83,18 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: (&Selector[TestModel]{}).Where(),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `TestModel`;",
+				SQL:  "SELECT * FORM `test_model`;",
 				Args: nil,
 			},
+		},
+		{
+			name:    "where",
+			builder: (&Selector[TestModel]{}).Where(Not(C("jkd").Eq(18))),
+			wantQuerry: &Query{
+				SQL:  "SELECT * FORM `test_model`;",
+				Args: nil,
+			},
+			wantErr: errs.NewErrUnknownField("jkd"),
 		},
 	}
 

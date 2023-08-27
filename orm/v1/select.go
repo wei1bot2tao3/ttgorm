@@ -1,14 +1,15 @@
-package orm
+package v1
 
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
+	"ttgorm/orm/internal/errs"
 )
 
 type Selector[T any] struct {
 	table string
+	model *model
 	where []Predicate
 	sb    *strings.Builder
 	args  []any
@@ -17,14 +18,18 @@ type Selector[T any] struct {
 // Build 构建sql语句
 func (s *Selector[T]) Build() (*Query, error) {
 	s.sb = &strings.Builder{}
+	var err error
+	s.model, err = parseModel(new(T))
+	if err != nil {
+		return nil, err
+	}
 	sb := s.sb
 	sb.WriteString("SELECT * FORM ")
 	if s.table == "" {
 
 		//我怎么把表名字拿到
-		var t T
 		sb.WriteByte('`')
-		sb.WriteString(reflect.TypeOf(t).Name())
+		sb.WriteString(s.model.tableName)
 		sb.WriteByte('`')
 	} else {
 		//segs := strings.Split(s.table, ".")
@@ -38,7 +43,7 @@ func (s *Selector[T]) Build() (*Query, error) {
 		//}
 		// 加不加引号？
 		sb.WriteByte('`')
-		sb.WriteString(s.table)
+		sb.WriteString(s.model.tableName)
 		sb.WriteByte('`')
 	}
 
@@ -50,7 +55,10 @@ func (s *Selector[T]) Build() (*Query, error) {
 
 		}
 		//在这里处理p
-		s.buildExpression(p)
+		err := s.buildExpression(p)
+		if err != nil {
+			return nil, err
+		}
 
 	}
 
@@ -80,7 +88,6 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 		}
 		// 中间
 		s.sb.WriteString(exp.op.string())
-
 		_, ok = exp.right.(Predicate)
 		if ok {
 			s.sb.WriteByte('(')
@@ -95,7 +102,13 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 	// 左边
 	case Column:
 		s.sb.WriteByte('`')
-		s.sb.WriteString(exp.name)
+		filename, ok := s.model.fields[exp.name]
+
+		if !ok {
+			// 传入错误 或者列不队
+			return errs.NewErrUnknownField(exp.name)
+		}
+		s.sb.WriteString(filename.colName)
 		s.sb.WriteByte('`')
 
 	//右边
