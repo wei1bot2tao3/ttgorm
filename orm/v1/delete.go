@@ -1,0 +1,130 @@
+package v1
+
+import (
+	"strings"
+	"ttgorm/orm/internal/errs"
+)
+
+type Deleter[T any] struct {
+	// 存储 sql语句
+	sb    strings.Builder
+	m     *model
+	table string
+	where []Predicate
+	args  []any
+}
+
+func (d *Deleter[T]) Build() (*Query, error) {
+	d.m, _ = parseModel(new(T))
+	d.sb.WriteString("DELETE FROM ")
+
+	if d.table == "" {
+		table := underscoreName(d.m.tableName)
+		d.sb.WriteByte('`')
+		d.sb.WriteString(table)
+		d.sb.WriteByte('`')
+	} else {
+
+		d.sb.WriteString(d.table)
+
+	}
+	// 处理 Where
+
+	if len(d.where) > 0 {
+		pred := d.where[0]
+		d.sb.WriteString(" WHERE ")
+		for i := 1; i < len(d.where)-1; i++ {
+			pred = pred.And(d.where[i])
+		}
+
+		err := d.buildDeleteExpression(pred)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	d.sb.WriteByte(';')
+	return &Query{
+		SQL:  d.sb.String(),
+		Args: d.args,
+	}, nil
+}
+
+// BuildDeletepExpression 构建语句
+func (d *Deleter[T]) buildDeleteExpression(expression Expression) error {
+
+	switch exp := expression.(type) {
+	case nil:
+	case Predicate:
+		if exp.left != nil {
+
+			_, ok := exp.left.(Predicate)
+			if ok {
+				d.sb.WriteByte('(')
+			}
+			err := d.buildDeleteExpression(exp.left)
+			if err != nil {
+				return err
+			}
+			if ok {
+				d.sb.WriteByte(')')
+			}
+		}
+		// 中间
+		d.sb.WriteString(exp.op.string())
+
+		// 右边
+
+		if exp.right != nil {
+			_, ok := exp.right.(Predicate)
+			if ok {
+				d.sb.WriteByte('(')
+			}
+			err := d.buildDeleteExpression(exp.right)
+			if err != nil {
+				return err
+			}
+			if ok {
+				d.sb.WriteByte(')')
+			}
+		}
+
+	case Column:
+
+		filename, ok := d.m.fields[exp.name]
+		if !ok {
+			return errs.NewErrUnknownField(exp.name)
+		}
+		d.sb.WriteByte('`')
+		columnname := underscoreName(filename.colName)
+		d.sb.WriteString(columnname)
+		d.sb.WriteByte('`')
+	case Value:
+		d.sb.WriteByte('?')
+		d.addArg(exp.val)
+	}
+
+	return nil
+}
+func (d *Deleter[T]) addArg(value any) *Deleter[T] {
+	d.args = make([]any, 0, 16)
+	d.args = append(d.args, value)
+	return d
+}
+
+// From accepts model definition
+func (d *Deleter[T]) From(table string) *Deleter[T] {
+	d.table = underscoreName(table)
+	return d
+}
+
+// Where accepts predicates
+func (d *Deleter[T]) Where(predicates ...Predicate) *Deleter[T] {
+	d.where = predicates
+	return d
+}
+
+func NewDeleter[T any]() *Deleter[T] {
+	return &Deleter[T]{}
+}
