@@ -182,4 +182,11 @@ Gorm 的元数据
         dsn：简单理解就是数据库连接信息
         常见错误：忘记匿名引入driver包
 
+    driver.Valuer 和sql.Scanner 接口
+    场景：
+    SQL 默认支持的类型就是基础类型，[]byte和string
+    driver.Valuer 读取
+    sql.Scanner 写入
+
+
 
