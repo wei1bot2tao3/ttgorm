@@ -143,8 +143,8 @@ func (s *Selector[T]) addArg(val any) *Selector[T] {
 }
 
 // Form 中间方法 要原封不懂返回 Selector 这个是添加表名
-func (s *Selector[T]) Form(tabel string) *Selector[T] {
-	s.table = tabel
+func (s *Selector[T]) Form(table string) *Selector[T] {
+	s.table = table
 	return s
 }
 
@@ -155,11 +155,22 @@ func (s *Selector[T]) Where(ps ...Predicate) *Selector[T] {
 }
 
 func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
-	//TODO implement me
-	panic("implement me")
+	q, err := s.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	db := s.db.db
+
+	// 在这里发起查询
+	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
+
 }
 
 func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {
-	//TODO implement me
-	panic("implement me")
+	q, err := s.Build()
+	if err != nil {
+		return nil, err
+
+	}
 }
