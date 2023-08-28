@@ -2,25 +2,39 @@ package v1
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"ttgorm/orm/internal/errs"
 )
 
-func Test_parseModel(t *testing.T) {
+func TestName(t *testing.T) {
 	testCass := []struct {
 		name      string
 		val       any
 		entity    any
 		wantModel *Model
 		wantErr   error
-		opts      []ModelOption
 	}{
 		{
 			name:   "test Model",
 			entity: TestModel{},
-
+			//wantModel: &Model{
+			//	tableName: "test_model",
+			//	fields: map[string]*Field{
+			//		"Id": {
+			//			colName: "id",
+			//		},
+			//		"FirstName": {
+			//			colName: "first_name",
+			//		},
+			//		"LastName": {
+			//			colName: "last_name",
+			//		},
+			//		"Age": {
+			//			colName: "age",
+			//		},
+			//	},
+			//},
 			wantErr: errs.ErrPointerOnly,
 		},
 		{
@@ -48,7 +62,7 @@ func Test_parseModel(t *testing.T) {
 	r := &registry{}
 	for _, tc := range testCass {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := r.Registry(tc.entity, tc.opts...)
+			res, err := r.Registry(tc.entity)
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return
@@ -67,7 +81,6 @@ func TestRegistry_get(t *testing.T) {
 		wantModel *Model
 		wantRes   map[string]any
 		cacheSize int
-		opts      []ModelOption
 	}{
 		{
 			name:   "test Model",
@@ -235,51 +248,4 @@ type CustomTableNameEmpty struct {
 func (c *CustomTableNameEmpty) TableName() string {
 	tabl := ""
 	return tabl
-}
-
-func TestModelWithTableName(t *testing.T) {
-	r := newRegistry()
-	m, err := r.Registry(&TestModel{}, ModelWithTableName("test_model_ttt"))
-	require.NoError(t, err)
-	assert.Equal(t, "test_model_ttt", m.tableName)
-}
-
-func TestModleWithColumnName(t *testing.T) {
-	testCass := []struct {
-		name    string
-		filed   string
-		colName string
-		wantErr error
-		wantRes string
-		opts    []ModelOption
-	}{
-		{
-			name:    "column came ",
-			filed:   "FirstName",
-			colName: "first_name_ccc",
-			wantRes: "first_name_ccc",
-		},
-		{
-			name:    "invalid column came ",
-			filed:   "XXXXX",
-			colName: "first_name_ccc",
-			wantRes: "first_name_ccc",
-			wantErr: errs.NewErrUnknownField("XXXXX"),
-		},
-	}
-
-	for _, tc := range testCass {
-		t.Run(tc.name, func(t *testing.T) {
-			r := newRegistry()
-			res, err := r.Registry(&TestModel{}, ModleWithColumnName(tc.filed, tc.colName))
-			assert.Equal(t, tc.wantErr, err)
-			if err != nil {
-				return
-			}
-			fd, ok := res.fields[tc.filed]
-			require.True(t, ok)
-			assert.Equal(t, tc.wantRes, fd.colName)
-
-		})
-	}
 }

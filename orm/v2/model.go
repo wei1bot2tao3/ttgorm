@@ -8,37 +8,18 @@ import (
 	"unicode"
 )
 
+
 const (
 	togColumn = "column"
 )
 
 type Registry interface {
-	Get(val any) (*Model, error)
-	Registry(val any, opts ...ModelOption) (*Model, error)
+	Get(val any)(*Model,error)
+	Registry(val any,opts ...ModelOption)(*Model,error)
 }
 
-type ModelOption func(m *Model) error
+type ModelOption func(m *Model)  error
 
-func ModelWithTableName(teblename string) ModelOption {
-	return func(m *Model) error {
-		m.tableName = teblename
-		//if teblename==""{
-		//	return errors.New("")
-		//}
-		return nil
-	}
-}
-
-func ModleWithColumnName(field string, column string) ModelOption {
-	return func(m *Model) error {
-		fd, ok := m.fields[field]
-		if !ok {
-			return errs.NewErrUnknownField(field)
-		}
-		fd.colName = column
-		return nil
-	}
-}
 
 // Model 注册在 全局的 数据模型
 type Model struct {
@@ -70,12 +51,12 @@ func underscoreName(tableName string) string {
 }
 
 // registry 元数据的注册中心
+// reflect.Typ 唯一的
+// models 是存放 表名和 列名的
 type registry struct {
 	// 读写锁
 	//lock   sync.RWMutex
-	// reflect.Typ 唯一的
 	//models map[reflect.Type]*Model
-	// models 是存放 表名和 列名的
 	models sync.Map
 }
 
@@ -86,7 +67,7 @@ func newRegistry() *registry {
 	}
 }
 
-// Get 获取 加注册
+// Get
 func (r *registry) Get(val any) (*Model, error) {
 	typ := reflect.TypeOf(val)
 	m, ok := r.models.Load(typ)
@@ -97,7 +78,7 @@ func (r *registry) Get(val any) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	r.models.Store(typ, m)
 	return m.(*Model), err
 }
 
@@ -125,27 +106,28 @@ func (r *registry) Get(val any) (*Model, error) {
 //
 //	r.models[typ] = m
 //}
+
 //
 //	return m, nil
 //}
 
 // Registry 通过传入指向结构体的指针 映射结构体的类型
-func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
+func (r *registry) Registry(entity any,opts ...ModelOption) (*Model, error) {
 	typ := reflect.TypeOf(entity)
 
 	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
 		return nil, errs.ErrPointerOnly
 	}
 
-	elemType := typ.Elem()
-	//for elemType.Kind() == reflect.Pointer {
-	//	elemType = elemType.Elem()
+	typ = typ.Elem()
+	//for typ.Kind() == reflect.Pointer {
+	//	typ = typ.Elem()
 	//}
 
-	numFiled := elemType.NumField()
+	numFiled := typ.NumField()
 	fieldMap := make(map[string]*Field, numFiled)
 	for i := 0; i < numFiled; i++ {
-		filedType := elemType.Field(i)
+		filedType := typ.Field(i)
 		pair, err := r.parseTag(filedType.Tag)
 		if err != nil {
 			return nil, err
@@ -166,23 +148,18 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 		tablename = tbl.TableName()
 	}
 	if tablename == "" {
-		tablename = underscoreName(elemType.Name())
+		tablename = underscoreName(typ.Name())
 	}
-	res := &Model{
+	res:=&Model{
 
 		tableName: tablename,
 
 		fields: fieldMap,
 	}
 
-	for _, opt := range opts {
-
-		err := opt(res)
-		if err != nil {
-			return nil, err
-		}
+	for _,opt:=range opts{
+		opt(res)
 	}
-	r.models.Store(typ, res)
 
 	return res, nil
 }
@@ -211,3 +188,5 @@ func (r *registry) parseTag(tag reflect.StructTag) (map[string]string, error) {
 type User struct {
 	ID uint64 `orm:"column=id,xxx=bbb"`
 }
+
+
