@@ -2,6 +2,8 @@ package sql_Demo
 
 import (
 	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -12,11 +14,31 @@ type JsonColumn[T any] struct {
 }
 
 func (j *JsonColumn[T]) Value() (driver.Value, error) {
-	//TODO implement me
-	panic("implement me")
+	if !j.Valid {
+		return nil, nil
+	}
+	return json.Marshal(j.Val)
 }
 
-func (j *JsonColumn[T]) Scan(state fmt.ScanState, verb rune) error {
-	//TODO implement me
-	panic("implement me")
+func (j *JsonColumn[T]) Scan(src any) error {
+	//
+	var bs []byte
+	switch data := src.(type) {
+	case string:
+		bs = []byte(data)
+	case []byte:
+		bs = data
+	case nil:
+		// 说明数据里没数据
+		return nil
+	default:
+		return errors.New("不支持的类型")
+
+	}
+	err := json.Unmarshal(bs, &j.Val)
+	fmt.Println(err)
+	if err == nil {
+		j.Valid = true
+	}
+	return err
 }

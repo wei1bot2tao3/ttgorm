@@ -1,3 +1,5 @@
+github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
+github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/beego/beego/v2 v2.1.1 h1:VbvmrbFDg2xkaoawqZ1kSSXlV4/FcsOw6CJQD5qvMzU=
 github.com/beego/beego/v2 v2.1.1/go.mod h1:0J0RQVIpepnRUfu6ax+kLVVB1FcdYryHK9lpRl5wvbY=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=

@@ -188,5 +188,32 @@ Gorm 的元数据
     driver.Valuer 读取
     sql.Scanner 写入
 
+    事物API
+    tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+    	require.NoError(t, err)
+    	    // 提交事物
+        	tx.Commit()
+        	//回滚
+        	//tx.Rollback()
+    TxOptions 隔离级别
+    序列化： 事务与事务是挨个执行读
+    可重复读：A事物无法看到B事务读修改 事务A 只要不提交就不会知道事务B修改了 --幻读
+    已提交读：事务A无法看到B事务未修改的事务，但是可以看到提交的 -- 不可重复读  幻读
+    未提交读：事务A可以看到事务B的未提交的修改的  -- 脏读 -- 不可重复读 幻读
+    异常：
+    --异常 脏读  A事务能看到B事务未提交的修改
+          不可重复读   A事务内同一个SQL读到了不同的数据 --未提交读和以提交读
+          幻读  A事务内读到了B事务内新插入的数据  ；理论上 但是InnoDB引擎不会发生幻读
+
+    性能和隔离级别成反比
+    Mysql 默认是可重复读
+
+    PrepareStatement 预查询
+
+    记得关闭他就好了
+    sqlmcok 入门
+    用sqlmock来模拟单元测试
+        使用
+        初始化：返回一个mockDB 类型*sql.DB
 
 
