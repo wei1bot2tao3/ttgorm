@@ -50,6 +50,12 @@ type Model struct {
 type Field struct {
 	// 列名
 	colName string
+
+	//代表 字段类型
+	typ reflect.Type
+
+	//字段名
+	GOName string
 }
 
 // underscoreName 驼峰转字符串命名
@@ -158,6 +164,8 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 
 		fieldMap[filedType.Name] = &Field{
 			colName: columnName,
+			typ:     filedType.Type,
+			GOName:  filedType.Name,
 		}
 	}
 

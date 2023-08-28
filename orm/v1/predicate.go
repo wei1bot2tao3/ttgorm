@@ -19,6 +19,8 @@ const (
 	opNot op = "NOT"
 	opAnd op = "AND"
 	opOR  op = "OR"
+	opLT  op = "<"
+	opGT  op = ">"
 )
 
 //// PredicateV1 谓词 查询的对象
@@ -87,6 +89,16 @@ func (c Column) Eq(arg any) Predicate {
 	return Predicate{
 		left: c,
 		op:   opEq,
+		right: Value{
+			val: arg,
+		},
+	}
+}
+
+func (c Column) LT(arg any) Predicate {
+	return Predicate{
+		left: c,
+		op:   opLT,
 		right: Value{
 			val: arg,
 		},

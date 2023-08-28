@@ -3,18 +3,20 @@ package v1
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"ttgorm/orm/internal/errs"
 )
 
+// Selector 定一个以查询操作的模型
 type Selector[T any] struct {
 	table string
 	model *Model
 	where []Predicate
 	sb    *strings.Builder
 	args  []any
-	r     *registry
-	db    *DB
+
+	db *DB
 }
 
 func NewSelector[T any](db *DB) *Selector[T] {
@@ -28,7 +30,7 @@ func NewSelector[T any](db *DB) *Selector[T] {
 func (s *Selector[T]) Build() (*Query, error) {
 	s.sb = &strings.Builder{}
 	var err error
-	s.model, err = s.r.Registry(new(T))
+	s.model, err = s.db.r.Registry(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +166,56 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 
 	// 在这里发起查询
 	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
+	if err != nil {
+		return nil, err
+	}
+	// 确认没有数据
+	if !rows.Next() {
+		return nil, errs.ErrNoRows
+	}
 
+	//在这里处理结果集
+	//tp:=new(T)
+
+	// 我怎么知道你SELECT出来哪些列
+	cs, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	// 你就拿到了SELECT的列
+	// cs 怎么处理
+	// 通过cs 构造vals
+	vals := make([]any, 0, len(cs))
+	tp := new(T)
+	for _, c := range cs {
+		for _, fd := range s.model.fields {
+			//反射一个新的实例
+			//创建的是原本类型的指针
+			if fd.colName == c {
+				val := reflect.New(fd.typ)
+				//vals = append(vals, val.Elem())
+				vals = append(vals, val.Interface())
+
+			}
+		}
+	}
+	//第一个问题：类型要匹配
+	//第二个问题：顺序要匹配
+
+	rows.Scan(vals...)
+	tpValue := reflect.ValueOf(tp)
+	for i, c := range cs {
+		for _, fd := range s.model.fields {
+			if fd.colName == c {
+				fmt.Println("开始")
+
+				tpValue.Elem().FieldByName(fd.GOName).Set(reflect.ValueOf(vals[i]).Elem())
+			}
+		}
+	}
+	// x想办法把vals塞进去 tp 里面
+
+	return tp, err
 }
 
 func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {
@@ -173,4 +224,10 @@ func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {
 		return nil, err
 
 	}
+	db := s.db.db
+	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
+	if rows.Next() {
+
+	}
+	return nil, err
 }
