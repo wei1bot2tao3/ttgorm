@@ -46,7 +46,7 @@ type Model struct {
 	tableName string
 	//字段名到字段的映射
 	fieldsMap map[string]*Field
-	// 列名到字段的映射
+	// 数据库列名到字段的映射
 	columnMap map[string]*Field
 }
 
@@ -60,6 +60,8 @@ type Field struct {
 
 	//字段名
 	GOName string
+	// 偏移量
+	Offset uintptr
 }
 
 // underscoreName 驼峰转字符串命名
@@ -171,6 +173,7 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 			colName: columnName,
 			typ:     filedType.Type,
 			GOName:  filedType.Name,
+			Offset:  filedType.Offset,
 		}
 		fieldMap[filedType.Name] = fdMeta
 		columnMap[columnName] = fdMeta
@@ -186,7 +189,6 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 		tableName = underscoreName(elemType.Name())
 	}
 	res := &Model{
-
 		tableName: tableName,
 		columnMap: columnMap,
 		fieldsMap: fieldMap,
