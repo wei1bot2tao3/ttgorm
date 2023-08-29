@@ -1,4 +1,4 @@
-package v1
+package model
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"ttgorm/orm/internal/errs"
+	"ttgorm/orm/v1"
 	"unicode"
 )
 
@@ -22,7 +23,7 @@ type ModelOption func(m *Model) error
 
 func ModelWithTableName(teblename string) ModelOption {
 	return func(m *Model) error {
-		m.tableName = teblename
+		m.TableName = teblename
 		//if teblename==""{
 		//	return errors.New("")
 		//}
@@ -32,34 +33,37 @@ func ModelWithTableName(teblename string) ModelOption {
 
 func ModleWithColumnName(field string, column string) ModelOption {
 	return func(m *Model) error {
-		fd, ok := m.fieldsMap[field]
+		fd, ok := m.FieldsMap[field]
 		if !ok {
 			return errs.NewErrUnknownField(field)
 		}
-		fd.colName = column
+		fd.ColName = column
 		return nil
 	}
 }
 
 // Model 注册在 全局的 数据模型
 type Model struct {
-	tableName string
+	TableName string
 	//字段名到字段的映射
-	fieldsMap map[string]*Field
+	FieldsMap map[string]*Field
 	// 列名到字段的映射
-	columnMap map[string]*Field
+	ColumnMap map[string]*Field
 }
 
 // Field 表示一个字段
 type Field struct {
 	// 列名
-	colName string
+	ColName string
 
 	//代表 字段类型
-	typ reflect.Type
+	Typ reflect.Type
 
 	//字段名
 	GOName string
+
+	// 字段相当于结构体本身的偏移量
+	Offset uintptr
 }
 
 // underscoreName 驼峰转字符串命名
@@ -90,7 +94,7 @@ type registry struct {
 }
 
 // 获取一个registry实例
-func newRegistry() *registry {
+func NewRegistry() *registry {
 	return &registry{
 		//models: make(map[reflect.Type]*Model, 64),
 	}
@@ -112,9 +116,9 @@ func (r *registry) Get(val any) (*Model, error) {
 }
 
 //func (r *registry) Get(val any) (*Model, error) {
-//typ := reflect.TypeOf(val)
+//Typ := reflect.TypeOf(val)
 //r.lock.RLock()
-//m, ok := r.models[typ]
+//m, ok := r.models[Typ]
 //r.lock.RUnlock()
 //if ok {
 //	return m, nil
@@ -122,7 +126,7 @@ func (r *registry) Get(val any) (*Model, error) {
 //
 //r.lock.Lock()
 //defer r.lock.Unlock()
-//m, ok = r.models[typ]
+//m, ok = r.models[Typ]
 //if ok {
 //	return m, nil
 //}
@@ -133,7 +137,7 @@ func (r *registry) Get(val any) (*Model, error) {
 //		return nil, err
 //	}
 //
-//	r.models[typ] = m
+//	r.models[Typ] = m
 //}
 //
 //	return m, nil
@@ -168,9 +172,10 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 		}
 
 		fdMeta := &Field{
-			colName: columnName,
-			typ:     filedType.Type,
+			ColName: columnName,
+			Typ:     filedType.Type,
 			GOName:  filedType.Name,
+			Offset:  filedType.Offset,
 		}
 		fieldMap[filedType.Name] = fdMeta
 		columnMap[columnName] = fdMeta
@@ -178,7 +183,7 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 	}
 
 	var tableName string
-	if tbl, ok := entity.(TableName); ok {
+	if tbl, ok := entity.(v1.TableName); ok {
 		tableName = tbl.TableName()
 	}
 	// 用户没有设置
@@ -187,11 +192,11 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 	}
 	res := &Model{
 
-		tableName: tableName,
-		columnMap: columnMap,
-		fieldsMap: fieldMap,
+		TableName: tableName,
+		ColumnMap: columnMap,
+		FieldsMap: fieldMap,
 	}
-	fmt.Println(res.fieldsMap)
+	fmt.Println(res.FieldsMap)
 	for _, opt := range opts {
 
 		err := opt(res)

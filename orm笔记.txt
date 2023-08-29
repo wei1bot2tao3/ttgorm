@@ -7,7 +7,7 @@ orm框架笔记：
 
 核心
 元数据：元数据是对模型的描述
-    三层：modelinfo->fieldsMap->fieldlinfo 三个层级
+    三层：modelinfo->FieldsMap->fieldlinfo 三个层级
            表        列        字段
 
     查询接口 三个
