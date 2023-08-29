@@ -7,7 +7,7 @@ orm框架笔记：
 
 核心
 元数据：元数据是对模型的描述
-    三层：modelinfo->fields->fieldlinfo 三个层级
+    三层：modelinfo->fieldsMap->fieldlinfo 三个层级
            表        列        字段
 
     查询接口 三个
@@ -216,4 +216,22 @@ Gorm 的元数据
         使用
         初始化：返回一个mockDB 类型*sql.DB
 
+    结果集 处理 反射 和unsafe
+    go 的内存布局
+    需要掌握：
+        计算地址
+        计算偏移量
+        直接操作内存
 
+
+        go unsafe 按照字长对齐
+        32位 4个字字节对齐
+        64位字长机器 按照8个字节对齐
+        go本身每一次访问内存都是按照字长倍数来访问的
+
+        unsafe.Pointer是一个GO层面的指针
+         GC会维护
+         uintptr 代表一个数字， 适用于地址运算 记录偏移量
+         同一个对象在GC前后会变的
+
+         GC：算法是 标记-复制

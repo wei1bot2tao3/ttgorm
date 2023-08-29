@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"database/sql"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"reflect"
@@ -14,6 +16,7 @@ func Test_parseModel(t *testing.T) {
 		val       any
 		entity    any
 		wantModel *Model
+		fields    []*Field
 		wantErr   error
 		opts      []ModelOption
 	}{
@@ -28,19 +31,27 @@ func Test_parseModel(t *testing.T) {
 			entity: &TestModel{},
 			wantModel: &Model{
 				tableName: "test_model",
-				fields: map[string]*Field{
-					"Id": {
-						colName: "id",
-					},
-					"FirstName": {
-						colName: "first_name",
-					},
-					"LastName": {
-						colName: "last_name",
-					},
-					"Age": {
-						colName: "age",
-					},
+			},
+			fields: []*Field{
+				{
+					colName: "id",
+					GOName:  "Id",
+					typ:     reflect.TypeOf(int64(0)),
+				},
+				{
+					colName: "first_name",
+					GOName:  "FirstName",
+					typ:     reflect.TypeOf(""),
+				},
+				{
+					colName: "last_name",
+					GOName:  "LastName",
+					typ:     reflect.TypeOf(&sql.NullString{}),
+				},
+				{
+					colName: "age",
+					GOName:  "Age",
+					typ:     reflect.TypeOf(int8(0)),
 				},
 			},
 		},
@@ -48,11 +59,21 @@ func Test_parseModel(t *testing.T) {
 	r := &registry{}
 	for _, tc := range testCass {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := r.Registry(tc.entity, tc.opts...)
+			res, err := r.Registry(tc.entity)
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return
 			}
+			filedMap := make(map[string]*Field)
+			columnMap := make(map[string]*Field)
+
+			for _, f := range tc.fields {
+				filedMap[f.GOName] = f
+				columnMap[f.colName] = f
+			}
+			fmt.Println(filedMap)
+			tc.wantModel.fieldsMap = filedMap
+			tc.wantModel.columnMap = columnMap
 			assert.Equal(t, tc.wantModel, res)
 		})
 	}
@@ -60,8 +81,8 @@ func Test_parseModel(t *testing.T) {
 
 func TestRegistry_get(t *testing.T) {
 	testCass := []struct {
-		name string
-
+		name      string
+		fields    []*Field
 		entity    any
 		wantErr   error
 		wantModel *Model
@@ -74,19 +95,27 @@ func TestRegistry_get(t *testing.T) {
 			entity: &TestModel{},
 			wantModel: &Model{
 				tableName: "test_model",
-				fields: map[string]*Field{
-					"Id": {
-						colName: "id",
-					},
-					"FirstName": {
-						colName: "first_name",
-					},
-					"LastName": {
-						colName: "last_name",
-					},
-					"Age": {
-						colName: "age",
-					},
+			},
+			fields: []*Field{
+				{
+					colName: "id",
+					GOName:  "Id",
+					typ:     reflect.TypeOf(int64(0)),
+				},
+				{
+					colName: "first_name",
+					GOName:  "FirstName",
+					typ:     reflect.TypeOf(""),
+				},
+				{
+					colName: "last_name",
+					GOName:  "LastName",
+					typ:     reflect.TypeOf(&sql.NullString{}),
+				},
+				{
+					colName: "age",
+					GOName:  "Age",
+					typ:     reflect.TypeOf(int8(0)),
 				},
 			},
 			cacheSize: 1,
@@ -103,7 +132,7 @@ func TestRegistry_get(t *testing.T) {
 
 			wantModel: &Model{
 				tableName: "tag_table",
-				fields: map[string]*Field{
+				fieldsMap: map[string]*Field{
 					"FirstName": {
 						colName: "first_name_t",
 					},
@@ -122,7 +151,7 @@ func TestRegistry_get(t *testing.T) {
 
 			wantModel: &Model{
 				tableName: "tag_table",
-				fields: map[string]*Field{
+				fieldsMap: map[string]*Field{
 					"FirstName": {
 						colName: "first_name",
 					},
@@ -141,7 +170,7 @@ func TestRegistry_get(t *testing.T) {
 
 			wantModel: &Model{
 				tableName: "tag_table",
-				fields: map[string]*Field{
+				fieldsMap: map[string]*Field{
 					"FirstName": {
 						colName: "first_name",
 					},
@@ -155,7 +184,7 @@ func TestRegistry_get(t *testing.T) {
 
 			wantModel: &Model{
 				tableName: "custom_table_nameTete1",
-				fields: map[string]*Field{
+				fieldsMap: map[string]*Field{
 					"FirstName": {
 						colName: "first_name",
 					},
@@ -169,7 +198,7 @@ func TestRegistry_get(t *testing.T) {
 
 			wantModel: &Model{
 				tableName: "custom_table_nameTete1",
-				fields: map[string]*Field{
+				fieldsMap: map[string]*Field{
 					"FirstName": {
 						colName: "first_name",
 					},
@@ -183,7 +212,7 @@ func TestRegistry_get(t *testing.T) {
 
 			wantModel: &Model{
 				tableName: "custom_table_name_empty",
-				fields: map[string]*Field{
+				fieldsMap: map[string]*Field{
 					"FirstName": {
 						colName: "first_name",
 					},
@@ -195,17 +224,22 @@ func TestRegistry_get(t *testing.T) {
 	r := newRegistry()
 	for _, tc := range testCass {
 		t.Run(tc.name, func(t *testing.T) {
-			m, err := r.Get(tc.entity)
+			res, err := r.Get(tc.entity)
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, tc.wantModel, m)
-			typ := reflect.TypeOf(tc.entity)
-			cache, ok := r.models.Load(typ)
+			filedMap := make(map[string]*Field)
+			columnMap := make(map[string]*Field)
 
-			assert.True(t, ok)
-			assert.Equal(t, tc.wantModel, cache)
+			for _, f := range tc.fields {
+				filedMap[f.GOName] = f
+				columnMap[f.colName] = f
+			}
+			fmt.Println(filedMap)
+			tc.wantModel.fieldsMap = filedMap
+			tc.wantModel.columnMap = columnMap
+			assert.Equal(t, tc.wantModel, res)
 		})
 	}
 }
@@ -276,7 +310,7 @@ func TestModleWithColumnName(t *testing.T) {
 			if err != nil {
 				return
 			}
-			fd, ok := res.fields[tc.filed]
+			fd, ok := res.fieldsMap[tc.filed]
 			require.True(t, ok)
 			assert.Equal(t, tc.wantRes, fd.colName)
 

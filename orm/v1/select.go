@@ -113,7 +113,7 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 	// 左边
 	case Column:
 		s.sb.WriteByte('`')
-		filename, ok := s.model.fields[exp.name]
+		filename, ok := s.model.fieldsMap[exp.name]
 
 		if !ok {
 			// 传入错误 或者列不队
@@ -185,33 +185,44 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	// 你就拿到了SELECT的列
 	// cs 怎么处理
 	// 通过cs 构造vals
-	vals := make([]any, 0, len(cs))
-	tp := new(T)
-	for _, c := range cs {
-		for _, fd := range s.model.fields {
-			//反射一个新的实例
-			//创建的是原本类型的指针
-			if fd.colName == c {
-				val := reflect.New(fd.typ)
-				//vals = append(vals, val.Elem())
-				vals = append(vals, val.Interface())
 
-			}
+	tp := new(T)
+
+	vals := make([]any, 0, len(cs))
+
+	valElem := make([]reflect.Value, 0, len(cs))
+
+	for _, c := range cs {
+
+		fd, ok := s.model.columnMap[c]
+		if !ok {
+			return nil, errs.NewErrUnknownColumn(c)
 		}
+		// 是*int
+		val := reflect.New(fd.typ)
+		//vals = append(vals, val.Elem())
+
+		vals = append(vals, val.Interface())
+		//记得调用
+		valElem = append(valElem, val.Elem())
 	}
+
 	//第一个问题：类型要匹配
 	//第二个问题：顺序要匹配
 
-	rows.Scan(vals...)
-	tpValue := reflect.ValueOf(tp)
+	err = rows.Scan(vals...)
+	if err != nil {
+		return nil, err
+	}
+	tpValueElem := reflect.ValueOf(tp).Elem()
 	for i, c := range cs {
-		for _, fd := range s.model.fields {
-			if fd.colName == c {
-				fmt.Println("开始")
+		fd, ok := s.model.columnMap[c]
+		if !ok {
+			return nil, errs.NewErrUnknownColumn(c)
 
-				tpValue.Elem().FieldByName(fd.GOName).Set(reflect.ValueOf(vals[i]).Elem())
-			}
 		}
+		tpValueElem.FieldByName(fd.GOName).Set(valElem[i])
+
 	}
 	// x想办法把vals塞进去 tp 里面
 

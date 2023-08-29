@@ -150,6 +150,10 @@ func TestSelector_Get(t *testing.T) {
 	rows = sqlmock.NewRows([]string{"id", "first_name", "age", "last_name"})
 	rows.AddRow("1", "Tom", "18", "Jerry")
 	mock.ExpectQuery("SELECT .*").WillReturnRows(rows)
+
+	rows = sqlmock.NewRows([]string{"id", "first_name", "age", "last_name"})
+	rows.AddRow("abc", "Tom", "18", "Jerry")
+	mock.ExpectQuery("SELECT .*").WillReturnRows(rows)
 	testCasses := []struct {
 		name string
 		s    *Selector[TestModel]
@@ -183,10 +187,22 @@ func TestSelector_Get(t *testing.T) {
 				LastName:  &sql.NullString{Valid: true, String: "Jerry"},
 			},
 		},
+		{
+			name: "scan error",
+			s:    NewSelector[TestModel](db).Where(C("Id").LT(1)),
+			wantRes: &TestModel{
+				Id:        1,
+				FirstName: "Tom",
+				Age:       18,
+				LastName:  &sql.NullString{Valid: true, String: "Jerry"},
+			},
+			wantErr: errs.ErrNoRows,
+		},
 	}
 
 	for _, tc := range testCasses {
 		t.Run(tc.name, func(t *testing.T) {
+
 			res, err := tc.s.Get(context.Background())
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {

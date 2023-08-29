@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -31,7 +32,7 @@ func ModelWithTableName(teblename string) ModelOption {
 
 func ModleWithColumnName(field string, column string) ModelOption {
 	return func(m *Model) error {
-		fd, ok := m.fields[field]
+		fd, ok := m.fieldsMap[field]
 		if !ok {
 			return errs.NewErrUnknownField(field)
 		}
@@ -43,7 +44,10 @@ func ModleWithColumnName(field string, column string) ModelOption {
 // Model 注册在 全局的 数据模型
 type Model struct {
 	tableName string
-	fields    map[string]*Field
+	//字段名到字段的映射
+	fieldsMap map[string]*Field
+	// 列名到字段的映射
+	columnMap map[string]*Field
 }
 
 // Field 表示一个字段
@@ -150,6 +154,7 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 
 	numFiled := elemType.NumField()
 	fieldMap := make(map[string]*Field, numFiled)
+	columnMap := make(map[string]*Field, numFiled)
 	for i := 0; i < numFiled; i++ {
 		filedType := elemType.Field(i)
 		pair, err := r.parseTag(filedType.Tag)
@@ -162,27 +167,31 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 			columnName = underscoreName(filedType.Name)
 		}
 
-		fieldMap[filedType.Name] = &Field{
+		fdMeta := &Field{
 			colName: columnName,
 			typ:     filedType.Type,
 			GOName:  filedType.Name,
 		}
+		fieldMap[filedType.Name] = fdMeta
+		columnMap[columnName] = fdMeta
+
 	}
 
-	var tablename string
+	var tableName string
 	if tbl, ok := entity.(TableName); ok {
-		tablename = tbl.TableName()
+		tableName = tbl.TableName()
 	}
-	if tablename == "" {
-		tablename = underscoreName(elemType.Name())
+	// 用户没有设置
+	if tableName == "" {
+		tableName = underscoreName(elemType.Name())
 	}
 	res := &Model{
 
-		tableName: tablename,
-
-		fields: fieldMap,
+		tableName: tableName,
+		columnMap: columnMap,
+		fieldsMap: fieldMap,
 	}
-
+	fmt.Println(res.fieldsMap)
 	for _, opt := range opts {
 
 		err := opt(res)

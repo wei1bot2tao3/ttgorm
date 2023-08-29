@@ -94,7 +94,7 @@ func (d *Deleter[T]) buildDeleteExpression(expression Expression) error {
 
 	case Column:
 
-		filename, ok := d.m.fields[exp.name]
+		filename, ok := d.m.fieldsMap[exp.name]
 		if !ok {
 			return errs.NewErrUnknownField(exp.name)
 		}
