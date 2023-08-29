@@ -3,15 +3,15 @@ package v1
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"ttgorm/orm/internal/errs"
-	model2 "ttgorm/orm/model"
 )
 
 // Selector 定一个以查询操作的模型
 type Selector[T any] struct {
 	table string
-	model *model2.Model
+	model *Model
 	where []Predicate
 	sb    *strings.Builder
 	args  []any
@@ -40,7 +40,7 @@ func (s *Selector[T]) Build() (*Query, error) {
 
 		//我怎么把表名字拿到
 		sb.WriteByte('`')
-		sb.WriteString(s.model.TableName)
+		sb.WriteString(s.model.tableName)
 		sb.WriteByte('`')
 	} else {
 		//segs := strings.Split(s.table, ".")
@@ -54,7 +54,7 @@ func (s *Selector[T]) Build() (*Query, error) {
 		//}
 		// 加不加引号？
 		sb.WriteByte('`')
-		sb.WriteString(s.model.TableName)
+		sb.WriteString(s.model.tableName)
 		sb.WriteByte('`')
 	}
 
@@ -113,13 +113,13 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 	// 左边
 	case Column:
 		s.sb.WriteByte('`')
-		filename, ok := s.model.FieldsMap[exp.name]
+		filename, ok := s.model.fieldsMap[exp.name]
 
 		if !ok {
 			// 传入错误 或者列不队
 			return errs.NewErrUnknownField(exp.name)
 		}
-		s.sb.WriteString(filename.ColName)
+		s.sb.WriteString(filename.colName)
 		s.sb.WriteByte('`')
 
 	//右边
@@ -156,34 +156,6 @@ func (s *Selector[T]) Where(ps ...Predicate) *Selector[T] {
 	return s
 }
 
-func (s *Selector[T]) GetV1(ctx context.Context) (*T, error) {
-	q, err := s.Build()
-	if err != nil {
-		return nil, err
-	}
-
-	db := s.db.db
-
-	// 在这里发起查询
-	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
-	if err != nil {
-		return nil, err
-	}
-	// 确认没有数据
-	if !rows.Next() {
-		return nil, errs.ErrNoRows
-	}
-
-	tp := new(T)
-	//var creator valuer.Creator
-	//val := creator(tp)
-	//err = val.SetColumns(rows)
-	// 接口定义好了就两件事，一个是用新接口的方法改造上层
-
-	return tp, err
-
-}
-
 func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	q, err := s.Build()
 	if err != nil {
@@ -202,15 +174,59 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 		return nil, errs.ErrNoRows
 	}
 
+	//在这里处理结果集
+	//tp:=new(T)
+
+	// 我怎么知道你SELECT出来哪些列
+	cs, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	// 你就拿到了SELECT的列
+	// cs 怎么处理
+	// 通过cs 构造vals
+
 	tp := new(T)
 
-	//var creator valuer.Valuer
-	//val := creator(tp)
-	//err = val.SetColumns(rows)
-	// 接口定义好了就两件事，一个是用新接口的方法改造上层
+	vals := make([]any, 0, len(cs))
+
+	valElem := make([]reflect.Value, 0, len(cs))
+
+	for _, c := range cs {
+
+		fd, ok := s.model.columnMap[c]
+		if !ok {
+			return nil, errs.NewErrUnknownColumn(c)
+		}
+		// 是*int
+		val := reflect.New(fd.typ)
+		//vals = append(vals, val.Elem())
+
+		vals = append(vals, val.Interface())
+		//记得调用
+		valElem = append(valElem, val.Elem())
+	}
+
+	//第一个问题：类型要匹配
+	//第二个问题：顺序要匹配
+
+	err = rows.Scan(vals...)
+	if err != nil {
+		return nil, err
+	}
+	tpValueElem := reflect.ValueOf(tp).Elem()
+	for i, c := range cs {
+		fd, ok := s.model.columnMap[c]
+		if !ok {
+			return nil, errs.NewErrUnknownColumn(c)
+
+		}
+		tpValueElem.FieldByName(fd.GOName).Set(valElem[i])
+
+	}
+	// x想办法把vals塞进去 tp 里面
 
 	return tp, err
-
 }
 
 func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {

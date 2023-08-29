@@ -2,12 +2,11 @@ package v1
 
 import (
 	"database/sql"
-	"ttgorm/orm/model"
 )
 
 // DB sql.DB的装饰器
 type DB struct {
-	r  *model.registry
+	r  *registry
 	db *sql.DB
 }
 
@@ -25,7 +24,7 @@ func Open(driver string, dataSourceName string, opts ...DBOption) (*DB, error) {
 
 func OpenDB(db *sql.DB, opts ...DBOption) (*DB, error) {
 	res := &DB{
-		r:  &model.registry{},
+		r:  &registry{},
 		db: db,
 	}
 

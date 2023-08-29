@@ -3,17 +3,16 @@ package v1
 import (
 	"strings"
 	"ttgorm/orm/internal/errs"
-	"ttgorm/orm/model"
 )
 
 type Deleter[T any] struct {
 	// 存储 sql语句
 	sb    strings.Builder
-	m     *model.Model
+	m     *Model
 	table string
 	where []Predicate
 	args  []any
-	r     *model.registry
+	r     *registry
 }
 
 func (d *Deleter[T]) Build() (*Query, error) {
@@ -22,7 +21,7 @@ func (d *Deleter[T]) Build() (*Query, error) {
 
 	if d.table == "" {
 
-		table := model.underscoreName(d.m.TableName)
+		table := underscoreName(d.m.tableName)
 		d.sb.WriteByte('`')
 		d.sb.WriteString(table)
 		d.sb.WriteByte('`')
@@ -95,12 +94,12 @@ func (d *Deleter[T]) buildDeleteExpression(expression Expression) error {
 
 	case Column:
 
-		filename, ok := d.m.FieldsMap[exp.name]
+		filename, ok := d.m.fieldsMap[exp.name]
 		if !ok {
 			return errs.NewErrUnknownField(exp.name)
 		}
 		d.sb.WriteByte('`')
-		columnname := model.underscoreName(filename.ColName)
+		columnname := underscoreName(filename.colName)
 		d.sb.WriteString(columnname)
 		d.sb.WriteByte('`')
 	case Value:
@@ -118,7 +117,7 @@ func (d *Deleter[T]) addArg(value any) *Deleter[T] {
 
 // From accepts Model definition
 func (d *Deleter[T]) From(table string) *Deleter[T] {
-	d.table = model.underscoreName(table)
+	d.table = underscoreName(table)
 	return d
 }
 

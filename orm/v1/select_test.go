@@ -196,14 +196,14 @@ func TestSelector_Get(t *testing.T) {
 				Age:       18,
 				LastName:  &sql.NullString{Valid: true, String: "Jerry"},
 			},
-			//wantErr: errs.ErrNoRows,
+			wantErr: errs.ErrNoRows,
 		},
 	}
 
 	for _, tc := range testCasses {
 		t.Run(tc.name, func(t *testing.T) {
 
-			res, err := tc.s.GetV1(context.Background())
+			res, err := tc.s.Get(context.Background())
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return
