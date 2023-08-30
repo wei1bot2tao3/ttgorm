@@ -1,4 +1,4 @@
-package v1
+package orm
 
 // // Predicate 谓词 查询的对象
 //
@@ -33,11 +33,6 @@ const (
 //	arg any
 //}
 
-// Expression 代表语句  标记接口
-type Expression interface {
-	expr()
-}
-
 // Predicate 谓词（代表一个查询条件） 查询的对象 左边 中间 右边 做成一个复杂二叉树
 type Predicate struct {
 	// left 二叉树左边 查询条件左边
@@ -65,45 +60,11 @@ func (Predicate) expr() {}
 //	}
 //}
 
-type Column struct {
-	name string
-}
-
-// C 组装列名
-func C(name string) Column {
-	return Column{
-		name: name,
-	}
-}
-
-func (c Column) expr() {}
-
 type Value struct {
 	val any
 }
 
 func (Value) expr() {}
-
-// Eq 更方便= C("id").Eq(arg) 链式调用
-func (c Column) Eq(arg any) Predicate {
-	return Predicate{
-		left: c,
-		op:   opEq,
-		right: Value{
-			val: arg,
-		},
-	}
-}
-
-func (c Column) LT(arg any) Predicate {
-	return Predicate{
-		left: c,
-		op:   opLT,
-		right: Value{
-			val: arg,
-		},
-	}
-}
 
 // And 使用C("id").Eq(12).Adn(C("name").Eq("tt))
 func (left Predicate) And(right Predicate) Predicate {

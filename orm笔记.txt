@@ -7,7 +7,7 @@ orm框架笔记：
 
 核心
 元数据：元数据是对模型的描述
-    三层：modelinfo->fieldsMap->fieldlinfo 三个层级
+    三层：modelinfo->FieldsMap->fieldlinfo 三个层级
            表        列        字段
 
     查询接口 三个
@@ -182,10 +182,10 @@ Gorm 的元数据
         dsn：简单理解就是数据库连接信息
         常见错误：忘记匿名引入driver包
 
-    driver.Valuer 和sql.Scanner 接口
+    driver.Value 和sql.Scanner 接口
     场景：
     SQL 默认支持的类型就是基础类型，[]byte和string
-    driver.Valuer 读取
+    driver.Value 读取
     sql.Scanner 写入
 
     事物API
@@ -235,3 +235,19 @@ Gorm 的元数据
          同一个对象在GC前后会变的
 
          GC：算法是 标记-复制
+
+    SELECT-如何指定列
+    可以指定
+    普通列
+    聚合查询
+    子查询
+    乱七八糟的查询
+    乱金油
+    RawExpr
+    用户随便写
+
+    INSERT语句
+    普通的
+    带SET
+    带SELECT  都支持 ON DUPLICATE KEY UPDATE
+

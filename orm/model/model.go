@@ -1,4 +1,4 @@
-package v1
+package model
 
 import (
 	"fmt"
@@ -15,14 +15,14 @@ const (
 
 type Registry interface {
 	Get(val any) (*Model, error)
-	Registry(val any, opts ...ModelOption) (*Model, error)
+	Registry(val any, opts ...Option) (*Model, error)
 }
 
-type ModelOption func(m *Model) error
+type Option func(m *Model) error
 
-func ModelWithTableName(teblename string) ModelOption {
+func WithTableName(teblename string) Option {
 	return func(m *Model) error {
-		m.tableName = teblename
+		m.TableName = teblename
 		//if teblename==""{
 		//	return errors.New("")
 		//}
@@ -30,40 +30,44 @@ func ModelWithTableName(teblename string) ModelOption {
 	}
 }
 
-func ModleWithColumnName(field string, column string) ModelOption {
+func WithColumnName(field string, column string) Option {
 	return func(m *Model) error {
-		fd, ok := m.fieldsMap[field]
+		fd, ok := m.FieldsMap[field]
 		if !ok {
 			return errs.NewErrUnknownField(field)
 		}
-		fd.colName = column
+		fd.ColName = column
 		return nil
 	}
 }
 
 // Model 注册在 全局的 数据模型
 type Model struct {
-	tableName string
+	TableName string
+	//提前计算好 列名和 对应的Fields
+	Fields []*Field
 	//字段名到字段的映射
-	fieldsMap map[string]*Field
-	// 列名到字段的映射
-	columnMap map[string]*Field
+	FieldsMap map[string]*Field
+	// 数据库列名到字段的映射
+	ColumnMap map[string]*Field
 }
 
 // Field 表示一个字段
 type Field struct {
 	// 列名
-	colName string
+	ColName string
 
 	//代表 字段类型
-	typ reflect.Type
+	Type reflect.Type
 
 	//字段名
-	GOName string
+	GoName string
+	// 偏移量
+	Offset uintptr
 }
 
-// underscoreName 驼峰转字符串命名
-func underscoreName(tableName string) string {
+// UnderscoreName 驼峰转字符串命名
+func UnderscoreName(tableName string) string {
 	var buf []byte
 	for i, v := range tableName {
 		if unicode.IsUpper(v) {
@@ -83,14 +87,14 @@ func underscoreName(tableName string) string {
 type registry struct {
 	// 读写锁
 	//lock   sync.RWMutex
-	// reflect.Typ 唯一的
+	// reflect.Type 唯一的
 	//models map[reflect.Type]*Model
 	// models 是存放 表名和 列名的
 	models sync.Map
 }
 
-// 获取一个registry实例
-func newRegistry() *registry {
+// NewRegistry 获取一个registry实例
+func NewRegistry() Registry {
 	return &registry{
 		//models: make(map[reflect.Type]*Model, 64),
 	}
@@ -112,9 +116,9 @@ func (r *registry) Get(val any) (*Model, error) {
 }
 
 //func (r *registry) Get(val any) (*Model, error) {
-//typ := reflect.TypeOf(val)
+//Type := reflect.TypeOf(val)
 //r.lock.RLock()
-//m, ok := r.models[typ]
+//m, ok := r.models[Type]
 //r.lock.RUnlock()
 //if ok {
 //	return m, nil
@@ -122,7 +126,7 @@ func (r *registry) Get(val any) (*Model, error) {
 //
 //r.lock.Lock()
 //defer r.lock.Unlock()
-//m, ok = r.models[typ]
+//m, ok = r.models[Type]
 //if ok {
 //	return m, nil
 //}
@@ -133,14 +137,14 @@ func (r *registry) Get(val any) (*Model, error) {
 //		return nil, err
 //	}
 //
-//	r.models[typ] = m
+//	r.models[Type] = m
 //}
 //
 //	return m, nil
 //}
 
 // Registry 通过传入指向结构体的指针 映射结构体的类型
-func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
+func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 	typ := reflect.TypeOf(entity)
 
 	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
@@ -155,6 +159,7 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 	numFiled := elemType.NumField()
 	fieldMap := make(map[string]*Field, numFiled)
 	columnMap := make(map[string]*Field, numFiled)
+	fields := make([]*Field, 0, numFiled)
 	for i := 0; i < numFiled; i++ {
 		filedType := elemType.Field(i)
 		pair, err := r.parseTag(filedType.Tag)
@@ -164,16 +169,18 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 		columnName := pair[togColumn]
 		if columnName == "" {
 			// 用户没有设置
-			columnName = underscoreName(filedType.Name)
+			columnName = UnderscoreName(filedType.Name)
 		}
 
 		fdMeta := &Field{
-			colName: columnName,
-			typ:     filedType.Type,
-			GOName:  filedType.Name,
+			ColName: columnName,
+			Type:    filedType.Type,
+			GoName:  filedType.Name,
+			Offset:  filedType.Offset,
 		}
 		fieldMap[filedType.Name] = fdMeta
 		columnMap[columnName] = fdMeta
+		fields = append(fields, fdMeta)
 
 	}
 
@@ -183,15 +190,15 @@ func (r *registry) Registry(entity any, opts ...ModelOption) (*Model, error) {
 	}
 	// 用户没有设置
 	if tableName == "" {
-		tableName = underscoreName(elemType.Name())
+		tableName = UnderscoreName(elemType.Name())
 	}
 	res := &Model{
-
-		tableName: tableName,
-		columnMap: columnMap,
-		fieldsMap: fieldMap,
+		TableName: tableName,
+		ColumnMap: columnMap,
+		FieldsMap: fieldMap,
+		Fields:    fields,
 	}
-	fmt.Println(res.fieldsMap)
+	fmt.Println(res.FieldsMap)
 	for _, opt := range opts {
 
 		err := opt(res)
@@ -227,4 +234,8 @@ func (r *registry) parseTag(tag reflect.StructTag) (map[string]string, error) {
 
 type User struct {
 	ID uint64 `orm:"column=id,xxx=bbb"`
+}
+
+type TableName interface {
+	TableName() string
 }

@@ -1,4 +1,4 @@
-package v1
+package orm
 
 import (
 	"database/sql"
@@ -27,9 +27,4 @@ type QueryBuilder interface {
 type Query struct {
 	SQL  string
 	Args []any
-}
-
-// TableName 用接口来自定义表名
-type TableName interface {
-	TableName() string
 }
