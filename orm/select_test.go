@@ -128,6 +128,7 @@ type TestModel struct {
 	LastName  *sql.NullString
 }
 
+// memoryDB  SQLite3 数据库驱动创建一个内存数据库，并返回对该数据库的引用
 func memoryDB(t *testing.T, opts ...DBOption) *DB {
 	db, err := Open("sqlite3",
 		"file:test.db?cache=shared&mode=memory",
@@ -204,7 +205,7 @@ func TestSelector_Get(t *testing.T) {
 	for _, tc := range testCasses {
 		t.Run(tc.name, func(t *testing.T) {
 
-			res, err := tc.s.GetV1(context.Background())
+			res, err := tc.s.Get(context.Background())
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return
@@ -250,4 +251,153 @@ func TestEml(t *testing.T) {
 	}
 
 	fmt.Println("ID:", tp.Name) // 输出结果：ID: 1
+}
+
+func TestSelector_Select(t *testing.T) {
+	db := memoryDB(t)
+	testCass := []struct {
+		name    string
+		q       QueryBuilder
+		wantErr error
+		wantRes *Query
+	}{
+		{
+			name: "multiple columns ",
+			q:    NewSelector[TestModel](db).Select(C("FirstName"), C("LastName")),
+			wantRes: &Query{
+				SQL: "SELECT `first_name`,`last_name` FORM `test_model`;",
+			},
+		},
+
+		{
+			name: "multiple columns ",
+			q:    NewSelector[TestModel](db),
+			wantRes: &Query{
+				SQL: "SELECT * FORM `test_model`;",
+			},
+		},
+
+		{
+			name: "multiple columns ",
+			q:    NewSelector[TestModel](db).Select(C("test_model")),
+			wantRes: &Query{
+				SQL: "SELECT `first_name`,`last_name` FORM `test_model`;",
+			},
+			wantErr: errs.NewErrUnknownField("test_model"),
+		},
+
+		{
+			name: "AVG ",
+			q:    NewSelector[TestModel](db).Select(Avg("Age")),
+			wantRes: &Query{
+				SQL: "SELECT AVG(`age`) FORM `test_model`;",
+			},
+		},
+		{
+			name: "SUM ",
+			q:    NewSelector[TestModel](db).Select(Sum("Age")),
+			wantRes: &Query{
+				SQL: "SELECT SUM(`age`) FORM `test_model`;",
+			},
+		},
+		{
+			name: "max ",
+			q:    NewSelector[TestModel](db).Select(Max("Age")),
+			wantRes: &Query{
+				SQL: "SELECT MAX(`age`) FORM `test_model`;",
+			},
+		},
+		{
+			name: "Min",
+			q:    NewSelector[TestModel](db).Select(Min("Age")),
+			wantRes: &Query{
+				SQL: "SELECT MIN(`age`) FORM `test_model`;",
+			},
+		},
+		{
+			name: "Min  error ",
+			q:    NewSelector[TestModel](db).Select(Min("Invalid")),
+			wantRes: &Query{
+				SQL: "SELECT MIN(`age`) FORM `test_model`;",
+			},
+			wantErr: errs.NewErrUnknownField("Invalid"),
+		},
+
+		{
+			name: "Count",
+			q:    NewSelector[TestModel](db).Select(Count("Age")),
+			wantRes: &Query{
+				SQL: "SELECT COUNT(`age`) FORM `test_model`;",
+			},
+		},
+
+		{
+			name: "Min AND MAX",
+			q:    NewSelector[TestModel](db).Select(Min("Age"), Sum("Age")),
+			wantRes: &Query{
+				SQL: "SELECT MIN(`age`),SUM(`age`) FORM `test_model`;",
+			},
+		},
+		{
+			name: "Raw",
+			q:    NewSelector[TestModel](db).Select(Raw("COUNT(DISTINCT `first_name`)")),
+			wantRes: &Query{
+				SQL: "SELECT COUNT(DISTINCT `first_name`) FORM `test_model`;",
+			},
+		},
+
+		{
+			name: "Raw expression",
+			q:    NewSelector[TestModel](db).Where(Raw("`age` < ?", 18).AsPredicate()),
+			wantRes: &Query{
+				SQL:  "SELECT * FORM `test_model` WHERE (`age` < ?);",
+				Args: []any{18},
+			},
+		},
+
+		{
+			name: "column alias",
+			q:    NewSelector[TestModel](db).Select(C("FirstName").As("my_name"), C("LastName")),
+			wantRes: &Query{
+				SQL: "SELECT `first_name` AS `my_name`,`last_name` FORM `test_model`;",
+			},
+		},
+
+		{
+			name: "avg alias",
+			q:    NewSelector[TestModel](db).Select(Avg("FirstName").As("avg_name"), C("LastName")),
+			wantRes: &Query{
+				SQL: "SELECT AVG(`first_name`) AS `avg_name`,`last_name` FORM `test_model`;",
+			},
+		},
+
+		{
+			name: "avg alias",
+			q:    NewSelector[TestModel](db).Where(C("Id").As("myid").Eq(1)),
+			wantRes: &Query{
+				SQL:  "SELECT * FORM `test_model` WHERE `id`=?;",
+				Args: []any{1},
+			},
+		},
+
+		{
+			name: "Raw expression",
+			q:    NewSelector[TestModel](db).Where(C("Id").Eq(Raw("`age`+?", 1))),
+			wantRes: &Query{
+				SQL:  "SELECT * FORM `test_model` WHERE `id`=(`age`+?);",
+				Args: []any{1},
+			},
+		},
+	}
+	for _, tc := range testCass {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := tc.q.Build()
+			assert.Equal(t, tc.wantErr, err)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			assert.Equal(t, tc.wantRes, res)
+		})
+	}
 }

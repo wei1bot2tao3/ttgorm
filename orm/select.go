@@ -9,15 +9,20 @@ import (
 	model "ttgorm/orm/model"
 )
 
+// Selectable
+type Selectable interface {
+	selectable()
+}
+
 // Selector 定一个以查询操作的模型
 type Selector[T any] struct {
-	table string
-	model *model.Model
-	where []Predicate
-	sb    *strings.Builder
-	args  []any
-
-	db *DB
+	table   string
+	model   *model.Model
+	where   []Predicate
+	sb      *strings.Builder
+	args    []any
+	columns []Selectable
+	db      *DB
 }
 
 func NewSelector[T any](db *DB) *Selector[T] {
@@ -36,7 +41,11 @@ func (s *Selector[T]) Build() (*Query, error) {
 		return nil, err
 	}
 	sb := s.sb
-	sb.WriteString("SELECT * FORM ")
+	sb.WriteString("SELECT ")
+	if err = s.BuilderColumns(); err != nil {
+		return nil, err
+	}
+	sb.WriteString(" FORM ")
 	if s.table == "" {
 
 		//我怎么把表名字拿到
@@ -105,6 +114,7 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 			s.sb.WriteByte('(')
 		}
 		if err := s.buildExpression(exp.right); err != nil {
+
 			return err
 		}
 		if ok {
@@ -113,21 +123,22 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 
 	// 左边
 	case Column:
-		s.sb.WriteByte('`')
-		filename, ok := s.model.FieldsMap[exp.name]
-
-		if !ok {
-			// 传入错误 或者列不队
-			return errs.NewErrUnknownField(exp.name)
+		exp.alias = ""
+		err := s.BuilderColumn(exp)
+		if err != nil {
+			return err
 		}
-		s.sb.WriteString(filename.ColName)
-		s.sb.WriteByte('`')
 
 	//右边
 	case Value:
 		// 把参数放进去
 		s.sb.WriteByte('?')
 		s.addArg(exp.val)
+	case RowExpr:
+		s.sb.WriteByte('(')
+		s.sb.WriteString(exp.raw)
+		s.addArg(exp.args...)
+		s.sb.WriteByte(')')
 
 	default:
 		return fmt.Errorf("orm : 不支持的分支")
@@ -137,17 +148,95 @@ func (s *Selector[T]) buildExpression(expr Expression) error {
 
 }
 
-func (s *Selector[T]) addArg(val any) *Selector[T] {
+// BuilderColumns 构造列 聚合函数
+func (s *Selector[T]) BuilderColumns() error {
+	if len(s.columns) == 0 {
+		s.sb.WriteByte('*')
+	}
+	if len(s.columns) > 0 {
+		for i, v := range s.columns {
+			if i > 0 {
+				s.sb.WriteByte(',')
+			}
+
+			switch c := v.(type) {
+			case Column:
+				err := s.BuilderColumn(c)
+				if err != nil {
+					return err
+				}
+			case Aggregate:
+				s.sb.WriteString(c.fn)
+				s.sb.WriteString(`(`)
+				err := s.BuilderColumn(Column{
+					name: c.arg,
+				})
+				if err != nil {
+					return err
+				}
+				s.sb.WriteString(`)`)
+				if c.alias != "" {
+					s.sb.WriteString(" AS `")
+					s.sb.WriteString(c.alias)
+					s.sb.WriteByte('`')
+				}
+
+			case RowExpr:
+				s.sb.WriteString(c.raw)
+				s.addArg(c.args...)
+			}
+
+		}
+	}
+	return nil
+}
+
+func (s *Selector[T]) BuilderColumn(c Column) error {
+
+	filename, ok := s.model.FieldsMap[c.name]
+
+	if !ok {
+		// 传入错误 或者列不队
+		return errs.NewErrUnknownField(c.name)
+	}
+	s.sb.WriteByte('`')
+	s.sb.WriteString(filename.ColName)
+	s.sb.WriteByte('`')
+	if c.alias != "" {
+		s.sb.WriteString(" AS `")
+		s.sb.WriteString(c.alias)
+		s.sb.WriteByte('`')
+	}
+
+	return nil
+}
+
+func (s *Selector[T]) addArg(vals ...any) {
+	if len(vals) == 0 {
+		return
+	}
 	if s.args == nil {
 		s.args = make([]any, 0, 16)
 	}
-	s.args = append(s.args, val)
-	return s
+	s.args = append(s.args, vals...)
+
 }
 
 // Form 中间方法 要原封不懂返回 Selector 这个是添加表名
 func (s *Selector[T]) Form(table string) *Selector[T] {
 	s.table = table
+	return s
+}
+
+// SelectV1 直接拼接
+//func (s *Selector[T]) SelectV1(columns ...string) *Selector[T] {
+//	s.columns = columns
+//	return s
+//}
+
+// Select
+func (s *Selector[T]) Select(columns ...Selectable) *Selector[T] {
+	s.columns = columns
 	return s
 }
 
@@ -157,7 +246,7 @@ func (s *Selector[T]) Where(ps ...Predicate) *Selector[T] {
 	return s
 }
 
-func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
+func (s *Selector[T]) GetV1(ctx context.Context) (*T, error) {
 	q, err := s.Build()
 	if err != nil {
 		return nil, err
@@ -230,7 +319,7 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	return tp, err
 }
 
-func (s *Selector[T]) GetV1(ctx context.Context) (*T, error) {
+func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	q, err := s.Build()
 	if err != nil {
 		return nil, err

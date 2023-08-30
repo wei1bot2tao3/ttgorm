@@ -10,13 +10,16 @@ import (
 
 type unsafeValue struct {
 	model *model.Model
-	val   any
+	//val   any
+	// 起始地址
+	address unsafe.Pointer
 }
 
 func NewUnsafeValue(model *model.Model, val any) Value {
+	address := reflect.ValueOf(val).UnsafePointer()
 	return unsafeValue{
-		model: model,
-		val:   val,
+		model:   model,
+		address: address,
 	}
 }
 
@@ -32,7 +35,7 @@ func (u unsafeValue) SetColumns(rows *sql.Rows) error {
 	// 创建一个切牌呢来存值 我先把他绑定好 因为rows.scan可以把值写进去
 	var vals []any
 	// 获取值的起始地址
-	address := reflect.ValueOf(u.val).UnsafePointer()
+
 	// 我得判断一下 是不是匹配的
 	for _, c := range cs {
 
@@ -42,7 +45,7 @@ func (u unsafeValue) SetColumns(rows *sql.Rows) error {
 		}
 
 		// 计算偏移量 ➕起始字段的地址
-		fieldAfddress := unsafe.Pointer(uintptr(address) + filed.Offset)
+		fieldAfddress := unsafe.Pointer(uintptr(u.address) + filed.Offset)
 		val := reflect.NewAt(filed.Type, fieldAfddress)
 		vals = append(vals, val.Interface())
 	}
