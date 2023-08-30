@@ -11,6 +11,7 @@ type DB struct {
 	r       model.Registry
 	db      *sql.DB
 	creator valuer.Creator
+	dialect Dialect
 }
 
 type DBOption func(db *DB)
@@ -30,6 +31,7 @@ func OpenDB(db *sql.DB, opts ...DBOption) (*DB, error) {
 		r:       model.NewRegistry(),
 		db:      db,
 		creator: valuer.NewUnsafeValue,
+		dialect: DialectMySQL,
 	}
 
 	for _, opt := range opts {
@@ -41,6 +43,13 @@ func OpenDB(db *sql.DB, opts ...DBOption) (*DB, error) {
 func DBWithRegistry(r model.Registry) DBOption {
 	return func(db *DB) {
 		db.r = r
+	}
+}
+
+// DBWithDialect 允许使用方言
+func DBWithDialect(dialect Dialect) DBOption {
+	return func(db *DB) {
+		db.dialect = dialect
 	}
 }
 

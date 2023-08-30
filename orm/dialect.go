@@ -1,15 +1,20 @@
 package orm
 
 import (
-	"strings"
 	"ttgorm/orm/internal/errs"
+)
+
+var (
+	DialectMySQL      Dialect = mysqlDialect{}
+	DialectSQLite     Dialect = sqliteDialect{}
+	DialectPostgreSQL Dialect = postgreDialect{}
 )
 
 type Dialect interface {
 	// quoter 返回一个引号，引用列名，表名的引号
 	quoter() byte
 	//buildOnDuplicateKey构造插入冲突部分
-	buildOnDuplicateKey(sb strings.Builder, odk *OnDuplicateKey) error
+	buildOnDuplicateKey(b *builder, odk *OnDuplicateKey) error
 }
 
 // standardSQL 其他方言继承这个接口
@@ -21,52 +26,51 @@ func (s standardSQL) quoter() byte {
 	panic("implement me")
 }
 
-func (s standardSQL) buildOnDuplicateKey(sb strings.Builder, odk *OnDuplicateKey) error {
-
+func (s standardSQL) buildOnDuplicateKey(b *builder, odk *OnDuplicateKey) error {
+	panic("implement me")
 }
 
-//  mysqlDialect 保证和 standardSQL
+// mysqlDialect 保证和 standardSQL
 type mysqlDialect struct {
 	standardSQL
 }
 
 func (s mysqlDialect) quoter() byte {
-	//TODO implement me
-	panic("implement me")
+	return '`'
 }
 
-func (s mysqlDialect) buildOnDuplicateKey(sb strings.Builder, odk *OnDuplicateKey) error {
+func (s mysqlDialect) buildOnDuplicateKey(b *builder, odk *OnDuplicateKey) error {
 	// 开始构建DUpLICAT KEY
 
-	sb.WriteString(" ON DUPLICATE KEY UPDATE ")
+	b.sb.WriteString(" ON DUPLICATE KEY UPDATE ")
 	for k, assign := range odk.assigns {
 		if k > 0 {
-			sb.WriteByte(',')
+			b.sb.WriteByte(',')
 		}
 		switch a := assign.(type) {
 		case Assignment:
-			fd, ok := m.FieldsMap[a.colmun]
+			fd, ok := b.model.FieldsMap[a.colmun]
 			if !ok {
 				return errs.NewErrUnknownField(a.colmun)
 			}
-			sb.WriteByte('`')
-			sb.WriteString(fd.ColName)
-			sb.WriteByte('`')
-			sb.WriteString("=?")
-			args = append(args, a.val)
+			b.sb.WriteByte('`')
+			b.sb.WriteString(fd.ColName)
+			b.sb.WriteByte('`')
+			b.sb.WriteString("=?")
+			b.args = append(b.args, a.val)
 		case Column:
-			fd, ok := m.FieldsMap[a.name]
+			fd, ok := b.model.FieldsMap[a.name]
 			if !ok {
 				return errs.NewErrUnknownField(a.name)
 			}
-			sb.WriteByte('`')
-			sb.WriteString(fd.ColName)
-			sb.WriteByte('`')
-			sb.WriteString("=VALUES(")
-			sb.WriteByte('`')
-			sb.WriteString(fd.ColName)
-			sb.WriteByte('`')
-			sb.WriteByte(')')
+			b.sb.WriteByte('`')
+			b.sb.WriteString(fd.ColName)
+			b.sb.WriteByte('`')
+			b.sb.WriteString("=VALUES(")
+			b.sb.WriteByte('`')
+			b.sb.WriteString(fd.ColName)
+			b.sb.WriteByte('`')
+			b.sb.WriteByte(')')
 
 		default:
 
@@ -78,5 +82,9 @@ func (s mysqlDialect) buildOnDuplicateKey(sb strings.Builder, odk *OnDuplicateKe
 }
 
 type sqliteDialect struct {
+	standardSQL
+}
+
+type postgreDialect struct {
 	standardSQL
 }

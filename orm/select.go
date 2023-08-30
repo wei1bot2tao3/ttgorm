@@ -3,10 +3,7 @@ package orm
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"strings"
 	"ttgorm/orm/internal/errs"
-	model "ttgorm/orm/model"
 )
 
 // Selectable
@@ -16,60 +13,64 @@ type Selectable interface {
 
 // Selector 定一个以查询操作的模型
 type Selector[T any] struct {
-	table   string
-	model   *model.Model
-	where   []Predicate
-	sb      *strings.Builder
-	args    []any
+	builder
+	table string
+	//model   *model.Model
+	where []Predicate
+	//sb      *strings.Builder
+	//args    []any
 	columns []Selectable
 	db      *DB
 }
 
 func NewSelector[T any](db *DB) *Selector[T] {
 	return &Selector[T]{
-		sb: &strings.Builder{},
+		builder: builder{
+			dialect: db.dialect,
+			quoter:  db.dialect.quoter(),
+		},
 		db: db,
 	}
 }
 
 // Build 构建sql语句
 func (s *Selector[T]) Build() (*Query, error) {
-	s.sb = &strings.Builder{}
 	var err error
-	s.model, err = s.db.r.Registry(new(T))
+	s.model, err = s.db.r.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
-	sb := s.sb
-	sb.WriteString("SELECT ")
+
+	s.sb.WriteString("SELECT ")
 	if err = s.BuilderColumns(); err != nil {
 		return nil, err
 	}
-	sb.WriteString(" FORM ")
+
+	s.sb.WriteString(" FORM ")
 	if s.table == "" {
 
 		//我怎么把表名字拿到
-		sb.WriteByte('`')
-		sb.WriteString(s.model.TableName)
-		sb.WriteByte('`')
+		s.sb.WriteByte('`')
+		s.sb.WriteString(s.model.TableName)
+		s.sb.WriteByte('`')
 	} else {
 		//segs := strings.Split(s.table, ".")
 		//for i, v := range segs {
-		//	sb.WriteByte('`')
-		//	sb.WriteString(v)
-		//	sb.WriteByte('`')
+		//	s.sb.WriteByte('`')
+		//	s.sb.WriteString(v)
+		//	s.sb.WriteByte('`')
 		//	if i < len(segs)-1 {
-		//		sb.WriteByte('.')
+		//		s.sb.WriteByte('.')
 		//	}
 		//}
 		// 加不加引号？
-		sb.WriteByte('`')
-		sb.WriteString(s.model.TableName)
-		sb.WriteByte('`')
+		s.sb.WriteByte('`')
+		s.sb.WriteString(s.model.TableName)
+		s.sb.WriteByte('`')
 	}
 
 	if len(s.where) > 0 {
-		sb.WriteString(" WHERE ")
+		s.sb.WriteString(" WHERE ")
 		p := s.where[0]
 		for i := 1; i < len(s.where); i++ {
 			p = p.And(s.where[i])
@@ -83,9 +84,9 @@ func (s *Selector[T]) Build() (*Query, error) {
 
 	}
 
-	sb.WriteByte(';')
+	s.sb.WriteByte(';')
 	return &Query{
-		SQL:  sb.String(),
+		SQL:  s.sb.String(),
 		Args: s.args,
 	}, nil
 
@@ -188,6 +189,7 @@ func (s *Selector[T]) BuilderColumns() error {
 
 		}
 	}
+
 	return nil
 }
 
@@ -246,79 +248,6 @@ func (s *Selector[T]) Where(ps ...Predicate) *Selector[T] {
 	return s
 }
 
-func (s *Selector[T]) GetV1(ctx context.Context) (*T, error) {
-	q, err := s.Build()
-	if err != nil {
-		return nil, err
-	}
-
-	db := s.db.db
-	// 在这里发起查询 查询的结果放到 rows里面
-	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
-	if err != nil {
-		return nil, err
-	}
-	// 确认没有数据 判断rows里也没有数据
-	if !rows.Next() {
-		return nil, errs.ErrNoRows
-	}
-
-	//在这里处理结果集    处理rows
-	// 我怎么知道你SELECT出来哪些列
-	//rows.Columns()：用于获取结果集的列名列表，返回一个字符串切片，其中包含查询结果的列名。
-	cs, err := rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-	// 你就拿到了SELECT的列
-	// cs 怎么处理
-	// 通过cs 构造vals
-	//new(T)可以创建一个指向T类型零值的指针
-	tp := new(T)
-	// 创建一个切片来存放val 查询出来的值
-	vals := make([]any, 0, len(cs))
-	//存放了查询结果的反射值
-	valElem := make([]reflect.Value, 0, len(cs))
-	for _, c := range cs {
-		//  s.model.ColumnMap 存放是数据库的列名 判断查询出来的是否符合结构体
-		fd, ok := s.model.ColumnMap[c]
-		if !ok {
-			return nil, errs.NewErrUnknownColumn(c)
-		}
-		// 存在返回一个 field 一个字段结构体 里面有列名 字段类型
-		// 是*int
-		// 通过字段的映射创建一个新的反射值 ，本质上是 查询到的数据 写到这个里 所有创建一个新的反射值
-		val := reflect.New(fd.Type)
-		//vals = append(vals, val.Elem())
-		// 把val的指针 存进去 后面靠rows.Scan 来把值填进去
-		vals = append(vals, val.Interface())
-		//记得调用 存的是映射值 可以靠这个获取指针和值
-		valElem = append(valElem, val.Elem())
-	}
-
-	//第一个问题：类型要匹配
-	//第二个问题：顺序要匹配
-
-	err = rows.Scan(vals...)
-	if err != nil {
-		return nil, err
-	}
-	tpValueElem := reflect.ValueOf(tp).Elem()
-
-	for i, c := range cs {
-		fd, ok := s.model.ColumnMap[c]
-		if !ok {
-			return nil, errs.NewErrUnknownColumn(c)
-
-		}
-		tpValueElem.FieldByName(fd.GoName).Set(valElem[i])
-
-	}
-	// x想办法把vals塞进去 tp 里面
-
-	return tp, err
-}
-
 func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	q, err := s.Build()
 	if err != nil {
@@ -341,6 +270,7 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	tp := new(T)
 	// 怎么把 	valuer.Value() 和tp 关联在一起 使用一个工厂模式
 	creator := s.db.creator
+
 	val := creator(s.model, tp)
 	err = val.SetColumns(rows)
 

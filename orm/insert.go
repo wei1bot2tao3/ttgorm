@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"ttgorm/orm/internal/errs"
@@ -8,6 +9,7 @@ import (
 )
 
 type Inserter[T any] struct {
+	builder
 	values  []*T
 	db      *DB
 	columns []string
@@ -19,6 +21,10 @@ type Inserter[T any] struct {
 
 func NewInserter[T any](db *DB) *Inserter[T] {
 	return &Inserter[T]{
+		builder: builder{
+			dialect: db.dialect,
+			quoter:  db.dialect.quoter(),
+		},
 		db: db,
 	}
 }
@@ -156,7 +162,8 @@ func (i Inserter[T]) BuildBackup() (*Query, error) {
 
 }
 
-func (i Inserter[T]) Build() (*Query, error) {
+func (i Inserter[T]) BuildV1() (*Query, error) {
+
 	if len(i.values) == 0 {
 		return nil, errs.ErrInsertZeroRow
 	}
@@ -236,6 +243,90 @@ func (i Inserter[T]) Build() (*Query, error) {
 	return &Query{
 		SQL:  sb.String(),
 		Args: args,
+	}, nil
+
+}
+
+func (i Inserter[T]) Build() (*Query, error) {
+	if len(i.values) == 0 {
+		return nil, errs.ErrInsertZeroRow
+	}
+
+	i.sb.WriteString("INSERT INTO ")
+	// 拿元数据
+	m, err := i.db.r.Get(i.values[0])
+	i.model = m
+	if err != nil {
+		return nil, err
+	}
+
+	// 拼接表名
+	i.builder.quote(m.TableName)
+	fmt.Println(i.sb.String())
+	// 一定要显示指定列的顺序，不然我我们不知道数据库中默认的顺序
+	// 一定要构造 test_model
+	i.sb.WriteByte('(')
+	fileds := m.Fields
+	if len(i.columns) > 0 {
+		fileds = make([]*model.Field, 0, len(i.columns))
+		for _, c := range i.columns {
+			filed, ok := m.FieldsMap[c]
+			if !ok {
+				return nil, errs.NewErrUnknownField(c)
+			}
+			fileds = append(fileds, filed)
+		}
+	}
+
+	// 不能遍历map 因为在go里面每异常都不一样
+	for idx, filed := range fileds {
+		if idx > 0 {
+			i.sb.WriteByte(',')
+		}
+
+		i.quote(filed.ColName)
+
+	}
+	i.sb.WriteByte(')')
+	// VALUE 开始构建 读取参数
+
+	i.sb.WriteString(" VALUES ")
+
+	i.args = make([]any, 0, len(i.values)*len(fileds))
+
+	for j, val := range i.values {
+
+		if j > 0 {
+			i.sb.WriteByte(',')
+		}
+		i.sb.WriteByte('(')
+		for idx, field := range fileds {
+
+			if idx > 0 {
+				i.sb.WriteByte(',')
+			}
+			i.sb.WriteByte('?')
+			// 把参数读出来 先拿到他的反射 然后是个指针 让然后掉对应字段的值 最后转普通表达
+			arg := reflect.ValueOf(val).Elem().FieldByName(field.GoName).Interface()
+			i.addArgs(arg)
+
+		}
+		i.sb.WriteByte(')')
+
+	}
+
+	// 开始构建DUpLICAT KEY
+	if i.onDuplicate != nil {
+		err = i.dialect.buildOnDuplicateKey(&i.builder, i.onDuplicate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	i.sb.WriteByte(';')
+	return &Query{
+		SQL:  i.builder.sb.String(),
+		Args: i.args,
 	}, nil
 
 }

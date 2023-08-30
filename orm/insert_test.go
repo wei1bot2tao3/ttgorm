@@ -33,7 +33,7 @@ func TestInserter_Build(t *testing.T) {
 				LastName:  &sql.NullString{String: "Jerry", Valid: true},
 			}),
 			wantRes: &Query{
-				SQL:  "INSERT INTO `test_model`(`id`,`first_name`,`age`,`last_name`)VALUES(?,?,?,?);",
+				SQL:  "INSERT INTO `test_model`(`id`,`first_name`,`age`,`last_name`) VALUES (?,?,?,?);",
 				Args: []any{int64(12), "Tom", int8(18), &sql.NullString{String: "Jerry", Valid: true}},
 			},
 		},
