@@ -7,7 +7,7 @@ orm框架笔记：
 
 核心
 元数据：元数据是对模型的描述
-    三层：modelinfo->fieldsMap->fieldlinfo 三个层级
+    三层：modelinfo->FieldsMap->fieldlinfo 三个层级
            表        列        字段
 
     查询接口 三个
@@ -111,7 +111,7 @@ Gorm 的元数据
         做： 方便测试 不连数据库就可以测试出来
         干什么 构建SQL 处理结果集
         go 到DB 一一对应
-        Gorm Schema                     Field
+        Gorm Schema                     Fields
               模型（对应表名 表结构。。。）   列
 
     反射： 系统类型
@@ -182,10 +182,10 @@ Gorm 的元数据
         dsn：简单理解就是数据库连接信息
         常见错误：忘记匿名引入driver包
 
-    driver.Valuer 和sql.Scanner 接口
+    driver.Value 和sql.Scanner 接口
     场景：
     SQL 默认支持的类型就是基础类型，[]byte和string
-    driver.Valuer 读取
+    driver.Value 读取
     sql.Scanner 写入
 
     事物API

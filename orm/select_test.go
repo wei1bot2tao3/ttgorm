@@ -204,7 +204,7 @@ func TestSelector_Get(t *testing.T) {
 	for _, tc := range testCasses {
 		t.Run(tc.name, func(t *testing.T) {
 
-			res, err := tc.s.GetV2(context.Background())
+			res, err := tc.s.GetV1(context.Background())
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return

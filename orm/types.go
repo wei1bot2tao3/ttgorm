@@ -28,8 +28,3 @@ type Query struct {
 	SQL  string
 	Args []any
 }
-
-// TableName 用接口来自定义表名
-type TableName interface {
-	TableName() string
-}
