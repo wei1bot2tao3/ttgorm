@@ -44,14 +44,16 @@ func WithColumnName(field string, column string) Option {
 // Model 注册在 全局的 数据模型
 type Model struct {
 	TableName string
+	//提前计算好 列名和 对应的Fields
+	Fields []*Field
 	//字段名到字段的映射
-	FieldsMap map[string]*Fields
+	FieldsMap map[string]*Field
 	// 数据库列名到字段的映射
-	ColumnMap map[string]*Fields
+	ColumnMap map[string]*Field
 }
 
-// Fields 表示一个字段
-type Fields struct {
+// Field 表示一个字段
+type Field struct {
 	// 列名
 	ColName string
 
@@ -155,8 +157,9 @@ func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 	//}
 
 	numFiled := elemType.NumField()
-	fieldMap := make(map[string]*Fields, numFiled)
-	columnMap := make(map[string]*Fields, numFiled)
+	fieldMap := make(map[string]*Field, numFiled)
+	columnMap := make(map[string]*Field, numFiled)
+	fields := make([]*Field, 0, numFiled)
 	for i := 0; i < numFiled; i++ {
 		filedType := elemType.Field(i)
 		pair, err := r.parseTag(filedType.Tag)
@@ -169,7 +172,7 @@ func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 			columnName = UnderscoreName(filedType.Name)
 		}
 
-		fdMeta := &Fields{
+		fdMeta := &Field{
 			ColName: columnName,
 			Type:    filedType.Type,
 			GoName:  filedType.Name,
@@ -177,6 +180,7 @@ func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 		}
 		fieldMap[filedType.Name] = fdMeta
 		columnMap[columnName] = fdMeta
+		fields = append(fields, fdMeta)
 
 	}
 
@@ -192,6 +196,7 @@ func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 		TableName: tableName,
 		ColumnMap: columnMap,
 		FieldsMap: fieldMap,
+		Fields:    fields,
 	}
 	fmt.Println(res.FieldsMap)
 	for _, opt := range opts {

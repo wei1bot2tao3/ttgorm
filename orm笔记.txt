@@ -111,7 +111,7 @@ Gorm 的元数据
         做： 方便测试 不连数据库就可以测试出来
         干什么 构建SQL 处理结果集
         go 到DB 一一对应
-        Gorm Schema                     Fields
+        Gorm Schema                     Field
               模型（对应表名 表结构。。。）   列
 
     反射： 系统类型
@@ -245,3 +245,9 @@ Gorm 的元数据
     乱金油
     RawExpr
     用户随便写
+
+    INSERT语句
+    普通的
+    带SET
+    带SELECT  都支持 ON DUPLICATE KEY UPDATE
+
