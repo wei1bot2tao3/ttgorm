@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -41,15 +40,13 @@ func WithColumnName(field string, column string) Option {
 	}
 }
 
-// Model 注册在 全局的 数据模型
+// Model 表示一个注册在全局的数据模型元数据，包含表名和对应的列名。
+// Filedsmap是 字段名到字段到映射 ColumnMP是数据库的列名到字段的映射
 type Model struct {
-	TableName string
-	//提前计算好 列名和 对应的Fields
-	Fields []*Field
-	//字段名到字段的映射
-	FieldsMap map[string]*Field
-	// 数据库列名到字段的映射
-	ColumnMap map[string]*Field
+	TableName string            // 表名
+	Fields    []*Field          // 提前计算好的列名和对应的字段
+	FieldsMap map[string]*Field // 字段名到字段的映射
+	ColumnMap map[string]*Field // 数据库列名到字段的映射
 }
 
 // Field 表示一个字段
@@ -100,9 +97,11 @@ func NewRegistry() Registry {
 	}
 }
 
-// Get 获取 加注册
+// Get 获取 加注册  这个val 是对应的表 在go的结构体
 func (r *registry) Get(val any) (*Model, error) {
+	// 获取 它对的类型
 	typ := reflect.TypeOf(val)
+	// 从注册表中加载对应的数据模型  没有的和 在去创建 下次就有了
 	m, ok := r.models.Load(typ)
 	if ok {
 		return m.(*Model), nil
@@ -115,48 +114,19 @@ func (r *registry) Get(val any) (*Model, error) {
 	return m.(*Model), err
 }
 
-//func (r *registry) Get(val any) (*Model, error) {
-//Type := reflect.TypeOf(val)
-//r.lock.RLock()
-//m, ok := r.models[Type]
-//r.lock.RUnlock()
-//if ok {
-//	return m, nil
-//}
-//
-//r.lock.Lock()
-//defer r.lock.Unlock()
-//m, ok = r.models[Type]
-//if ok {
-//	return m, nil
-//}
-//if !ok {
-//	var err error
-//	m, err = r.Registry(val)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	r.models[Type] = m
-//}
-//
-//	return m, nil
-//}
-
-// Registry 通过传入指向结构体的指针 映射结构体的类型
+// Registry 通过传入指向结构体的指针 结构体--》元数据的过程
 func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
+	// 先获取 结构体的类型
 	typ := reflect.TypeOf(entity)
-
+	// 判断是否传入指向结构体的指针
 	if typ.Kind() != reflect.Pointer || typ.Elem().Kind() != reflect.Struct {
 		return nil, errs.ErrPointerOnly
 	}
-
+	// 指针的话 先elem 取对应字段
 	elemType := typ.Elem()
-	//for elemType.Kind() == reflect.Pointer {
-	//	elemType = elemType.Elem()
-	//}
-
+	//获取长度啊
 	numFiled := elemType.NumField()
+	// 创建 go结构体到元数据的映射
 	fieldMap := make(map[string]*Field, numFiled)
 	columnMap := make(map[string]*Field, numFiled)
 	fields := make([]*Field, 0, numFiled)
@@ -168,17 +138,19 @@ func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 		}
 		columnName := pair[togColumn]
 		if columnName == "" {
-			// 用户没有设置
+			// 用户没有设置标签 就取这个结构体的 字段名
 			columnName = UnderscoreName(filedType.Name)
 		}
-
+		// 构建一下 go结构体下 每一个字段 的信息  把它存到file map里
 		fdMeta := &Field{
 			ColName: columnName,
 			Type:    filedType.Type,
 			GoName:  filedType.Name,
 			Offset:  filedType.Offset,
 		}
+		// 根据字段名 来找 字段信息
 		fieldMap[filedType.Name] = fdMeta
+		// 根据数据库重的列名找
 		columnMap[columnName] = fdMeta
 		fields = append(fields, fdMeta)
 
@@ -198,7 +170,6 @@ func (r *registry) Registry(entity any, opts ...Option) (*Model, error) {
 		FieldsMap: fieldMap,
 		Fields:    fields,
 	}
-	fmt.Println(res.FieldsMap)
 	for _, opt := range opts {
 
 		err := opt(res)
