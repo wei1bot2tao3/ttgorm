@@ -8,23 +8,25 @@ import (
 
 type Inserter[T any] struct {
 	builder
-	values  []*T
-	db      *DB
+	values []*T
+
 	columns []string
 	// 方案一
 	//onConflict []Assignable
 	//方案二 维持一个这个参数 buildr 模式开给他赋值
 	onDuplicate *Upsert
+	session     Session
 }
 
 // NewInserter 创建一个Inserter的实例 初始化好 db和builder（公共字段）
-func NewInserter[T any](db *DB) *Inserter[T] {
+func NewInserter[T any](session Session) *Inserter[T] {
+	c := session.getCore()
 	return &Inserter[T]{
 		builder: builder{
-			dialect: db.dialect,
-			quoter:  db.dialect.quoter(),
+			core:   c,
+			quoter: c.dialect.quoter(),
 		},
-		db: db,
+		session: session,
 	}
 }
 
@@ -49,7 +51,7 @@ func (i Inserter[T]) Build() (*Query, error) {
 
 	i.sb.WriteString("INSERT INTO ")
 	// 要插入结构体对应的 元数据  传入的是对应的表 在go的结构体
-	m, err := i.db.r.Get(i.values[0])
+	m, err := i.r.Get(i.values[0])
 	// model 取到的元数据 写入公共字段的 model
 	i.model = m
 	if err != nil {
@@ -100,7 +102,7 @@ func (i Inserter[T]) Build() (*Query, error) {
 		i.sb.WriteByte('(')
 
 		for idx, field := range fileds {
-			val := i.db.creator(i.model, v)
+			val := i.creator(i.model, v)
 			if idx > 0 {
 				i.sb.WriteByte(',')
 			}
@@ -179,7 +181,7 @@ func (i *Inserter[T]) Exec(ctx context.Context) Result {
 			err: err,
 		}
 	}
-	res, err := i.db.db.Exec(q.SQL, q.Args...)
+	res, err := i.session.execContext(ctx, q.SQL, q.Args...)
 
 	return Result{
 		err: err,

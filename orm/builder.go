@@ -3,16 +3,14 @@ package orm
 import (
 	"strings"
 	"ttgorm/orm/internal/errs"
-	"ttgorm/orm/model"
 )
 
 // builder 公共的抽象 需要什么放进去什么
 type builder struct {
-	sb      strings.Builder
-	args    []any
-	model   *model.Model
-	dialect Dialect
-	quoter  byte
+	sb   strings.Builder
+	args []any
+	core
+	quoter byte
 }
 
 // quote name

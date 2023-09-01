@@ -20,23 +20,25 @@ type Selector[T any] struct {
 	//sb      *strings.Builder
 	//args    []any
 	columns []Selectable
-	db      *DB
+	//db      *DB
+	session Session
 }
 
-func NewSelector[T any](db *DB) *Selector[T] {
+func NewSelector[T any](session Session) *Selector[T] {
+	c := session.getCore()
 	return &Selector[T]{
 		builder: builder{
-			dialect: db.dialect,
-			quoter:  db.dialect.quoter(),
+			core:   c,
+			quoter: c.dialect.quoter(),
 		},
-		db: db,
+		session: session,
 	}
 }
 
 // Build 构建sql语句
 func (s *Selector[T]) Build() (*Query, error) {
 	var err error
-	s.model, err = s.db.r.Get(new(T))
+	s.model, err = s.r.Get(new(T))
 	if err != nil {
 		return nil, err
 	}
@@ -253,9 +255,8 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := s.db.db
 
-	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
+	rows, err := s.session.queryContext(ctx, q.SQL, q.Args...)
 
 	if err != nil {
 		return nil, err
@@ -269,7 +270,7 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 
 	tp := new(T)
 	// 怎么把 	valuer.Value() 和tp 关联在一起 使用一个工厂模式
-	creator := s.db.creator
+	creator := s.creator
 
 	val := creator(s.model, tp)
 	err = val.SetColumns(rows)
@@ -335,8 +336,8 @@ func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {
 		return nil, err
 
 	}
-	db := s.db.db
-	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
+
+	rows, err := s.session.queryContext(ctx, q.SQL, q.Args...)
 	if rows.Next() {
 
 	}

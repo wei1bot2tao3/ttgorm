@@ -269,5 +269,19 @@ Gorm 的元数据
     需要定义一个新的结构体来表达事务的含义
     引入全新的Tx来表达事务 ，在DB创建好后 就是一个不可变的对象
 
+    API什么时候回滚或者 提交呢？
+    有个标记位
+    执行业务逻辑后 给他标记
+    如果panic那就 直接到defer 发现 失败
+    在回滚
+    事务扩散方案：
+    如果上游的方法开启了事务，那么下游的所有方法也都使用这个事务
+     在go里 使用context.Context
+
+    AOP设计
+    QueryContext  代表查询上下文
+    QueryResult   代表查询结果
+    Handler       代表在上下文中做点什么事情
+    Middleware    连接不同的Handler
 
 
