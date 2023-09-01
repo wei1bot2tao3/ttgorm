@@ -216,7 +216,7 @@ func TestSelector_Get(t *testing.T) {
 	}
 }
 
-type Result struct {
+type ResultTEste struct {
 	ID   int
 	Name string
 }
@@ -226,7 +226,7 @@ func TestEml(t *testing.T) {
 	vals := []interface{}{1, "John"}
 
 	// 创建结果对象
-	tp := Result{}
+	tp := ResultTEste{}
 
 	// 获取结果对象的反射值
 	tpValue := reflect.ValueOf(&tp).Elem()

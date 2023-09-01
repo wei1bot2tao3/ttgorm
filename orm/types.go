@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"database/sql"
 	"github.com/beego/beego/v2/server/web/context"
 )
 
@@ -15,7 +14,7 @@ type Querier[T any] interface {
 
 // Executor 用于INSERT，DELETE，UPDATE 执行者
 type Executor interface {
-	Exec(ctx context.Context) (sql.Result, error)
+	Exec(ctx context.Context) Result
 }
 
 // QueryBuilder 代表SQL构造过程

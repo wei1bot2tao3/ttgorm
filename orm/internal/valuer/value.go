@@ -8,6 +8,8 @@ import (
 type Value interface {
 	// SetColumns 设置新的值 把元数据和返回值结合
 	SetColumns(rows *sql.Rows) error
+
+	Field(name string) (any, error)
 }
 
 type Creator func(model *model.Model, entity any) Value

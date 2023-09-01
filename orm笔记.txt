@@ -251,3 +251,23 @@ Gorm 的元数据
     带SET
     带SELECT  都支持 ON DUPLICATE KEY UPDATE
 
+    事务API
+        核心就是 允许用户创建事务 ，然后在事务内部执行增删改查
+    Beego 的设计
+    前面是
+    GROM
+    DB本身也可以看做是事务
+    普通的事务开启，提交和回滚功能
+    额外实现一个savePoint的功能
+    事务闭包API
+
+    核心API定义
+    Begin 开始一个事务
+    Commit 提交一个事务
+    Rollback 回滚一个事务
+
+    需要定义一个新的结构体来表达事务的含义
+    引入全新的Tx来表达事务 ，在DB创建好后 就是一个不可变的对象
+
+
+

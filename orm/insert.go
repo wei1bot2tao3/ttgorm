@@ -1,7 +1,7 @@
 package orm
 
 import (
-	"reflect"
+	"context"
 	"ttgorm/orm/internal/errs"
 	"ttgorm/orm/model"
 )
@@ -34,8 +34,8 @@ func (i *Inserter[T]) Values(vals ...*T) *Inserter[T] {
 	return i
 }
 
-// Cloumns 插入指定列
-func (i *Inserter[T]) Cloumns(clos ...string) *Inserter[T] {
+// Columns 插入指定列
+func (i *Inserter[T]) Columns(clos ...string) *Inserter[T] {
 	i.columns = clos
 	return i
 }
@@ -92,20 +92,24 @@ func (i Inserter[T]) Build() (*Query, error) {
 
 	i.args = make([]any, 0, len(i.values)*len(fileds))
 
-	for j, val := range i.values {
+	for j, v := range i.values {
 
 		if j > 0 {
 			i.sb.WriteByte(',')
 		}
 		i.sb.WriteByte('(')
-		for idx, field := range fileds {
 
+		for idx, field := range fileds {
+			val := i.db.creator(i.model, v)
 			if idx > 0 {
 				i.sb.WriteByte(',')
 			}
 			i.sb.WriteByte('?')
 			// 把参数读出来 先拿到他的反射 然后是个指针 让然后掉对应字段的值 最后转普通表达
-			arg := reflect.ValueOf(val).Elem().FieldByName(field.GoName).Interface()
+			arg, err := val.Field(field.GoName)
+			if err != nil {
+				return nil, err
+			}
 			i.addArgs(arg)
 
 		}
@@ -152,17 +156,33 @@ type UpsertBuilder[T any] struct {
 	conflictColumns []string
 }
 
-// ConflictColumns中间方法
+// ConflictColumns 中间方法
 func (o *UpsertBuilder[T]) ConflictColumns(cols ...string) *UpsertBuilder[T] {
 	o.conflictColumns = cols
 	return o
 }
 
-// Update
+// Update 添加
 func (o UpsertBuilder[T]) Update(assigns ...Assignable) *Inserter[T] {
 	o.i.onDuplicate = &Upsert{
 		assigns:         assigns,
 		conflictColumns: o.conflictColumns,
 	}
 	return o.i
+}
+
+// Exec 执行 INster语句
+func (i *Inserter[T]) Exec(ctx context.Context) Result {
+	q, err := i.Build()
+	if err != nil {
+		return Result{
+			err: err,
+		}
+	}
+	res, err := i.db.db.Exec(q.SQL, q.Args...)
+
+	return Result{
+		err: err,
+		res: res,
+	}
 }

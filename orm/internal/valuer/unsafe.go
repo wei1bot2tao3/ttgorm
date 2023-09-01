@@ -15,6 +15,17 @@ type unsafeValue struct {
 	address unsafe.Pointer
 }
 
+func (u unsafeValue) Field(name string) (any, error) {
+	fd, ok := u.model.FieldsMap[name]
+	if !ok {
+		return nil, errs.NewErrUnknownField(name)
+
+	}
+	fdAddress := unsafe.Pointer(uintptr(u.address) + fd.Offset)
+	val := reflect.NewAt(fd.Type, fdAddress)
+	return val.Elem().Interface(), nil
+}
+
 func NewUnsafeValue(model *model.Model, val any) Value {
 	address := reflect.ValueOf(val).UnsafePointer()
 	return unsafeValue{

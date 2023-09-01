@@ -10,14 +10,24 @@ import (
 
 type reflectValue struct {
 	model *model.Model
-	val   any
+	//val   any
+	val reflect.Value
 }
 
 func NewReflectValue(model *model.Model, val any) Value {
 	return reflectValue{
 		model: model,
-		val:   val,
+		val:   reflect.ValueOf(val).Elem(),
 	}
+}
+
+func (r reflectValue) Field(name string) (any, error) {
+	// 检查name是否合法
+	//_,ok:=r.val.Type().FieldByName(name)
+	//if !ok{
+	//	return nil,errors.New("错了")
+	//}
+	return r.val.FieldByName(name).Interface(), nil
 }
 
 var _ Creator = NewReflectValue
