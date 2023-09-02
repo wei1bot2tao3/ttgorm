@@ -23,6 +23,8 @@ type DB struct {
 type DBOption func(db *DB)
 
 // Open 注册一个实例 返回一个 同时注册一个元数据实例 放在db中返回
+// driver 表示数据库驱动的名称  dataSourceNam表示数据库连接的数据源名称。它是一个字符串，包含了连接数据库所需的信息，如主机名、端口号、数据库名称、用户名和密码
+// opts ...DBOption：表示可选的数据库选项
 func Open(driver string, dataSourceName string, opts ...DBOption) (*DB, error) {
 	db, err := sql.Open(driver, dataSourceName)
 	if err != nil {
@@ -51,6 +53,12 @@ func OpenDB(db *sql.DB, opts ...DBOption) (*DB, error) {
 func DBWithRegistry(r model.Registry) DBOption {
 	return func(db *DB) {
 		db.r = r
+	}
+}
+
+func DbWithMiddlewares(mdls ...Middleware) DBOption {
+	return func(db *DB) {
+		db.mdls = mdls
 	}
 }
 

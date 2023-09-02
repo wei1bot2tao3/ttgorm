@@ -26,34 +26,34 @@ func TestSelector_Build(t *testing.T) {
 		wantRes    *TestModel
 	}{
 		{
-			name:    "select no form",
+			name:    "select no FROM",
 			builder: NewSelector[TestModel](db),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model`;",
+				SQL:  "SELECT * FROM `test_model`;",
 				Args: nil,
 			},
 		},
 		{
-			name:    "form",
-			builder: NewSelector[TestModel](db).Form("test_model"),
+			name:    "FROM",
+			builder: NewSelector[TestModel](db).From("test_model"),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model`;",
+				SQL:  "SELECT * FROM `test_model`;",
 				Args: nil,
 			},
 		},
 		{
-			name:    "empty form ",
-			builder: NewSelector[TestModel](db).Form(""),
+			name:    "empty FROM ",
+			builder: NewSelector[TestModel](db).From(""),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model`;",
+				SQL:  "SELECT * FROM `test_model`;",
 				Args: nil,
 			},
 		},
 		//{
-		//	name:    "form db ",
-		//	builder: (&Selector[TestModel]{}).Form("test_db.test_model"),
+		//	name:    "FROM db ",
+		//	builder: (&Selector[TestModel]{}).FROM("test_db.test_model"),
 		//	wantQuerry: &Query{
-		//		SQL:  "SELECT * FORM `test_db`.`test_model`;",
+		//		SQL:  "SELECT * FROM `test_db`.`test_model`;",
 		//		Args: nil,
 		//	},
 		//},
@@ -61,7 +61,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: NewSelector[TestModel](db).Where(C("Id").Eq(18)),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE `id`=?;",
+				SQL:  "SELECT * FROM `test_model` WHERE `id`=?;",
 				Args: []any{18},
 			},
 		},
@@ -69,7 +69,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: NewSelector[TestModel](db).Where(C("Id").Eq(18).And(C("Id").Eq(11))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE (`id`=?)AND(`id`=?);",
+				SQL:  "SELECT * FROM `test_model` WHERE (`id`=?)AND(`id`=?);",
 				Args: []any{18, 11},
 			},
 		},
@@ -77,7 +77,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "not",
 			builder: NewSelector[TestModel](db).Where(Not(C("Id").Eq(18))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE NOT(`id`=?);",
+				SQL:  "SELECT * FROM `test_model` WHERE NOT(`id`=?);",
 				Args: []any{18},
 			},
 		},
@@ -85,7 +85,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: NewSelector[TestModel](db).Where(C("Id").Eq(18).Or(C("Id").Eq(11))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE (`id`=?)OR(`id`=?);",
+				SQL:  "SELECT * FROM `test_model` WHERE (`id`=?)OR(`id`=?);",
 				Args: []any{18, 11},
 			},
 		},
@@ -93,7 +93,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: NewSelector[TestModel](db).Where(),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model`;",
+				SQL:  "SELECT * FROM `test_model`;",
 				Args: nil,
 			},
 		},
@@ -101,7 +101,7 @@ func TestSelector_Build(t *testing.T) {
 			name:    "where",
 			builder: NewSelector[TestModel](db).Where(Not(C("jkd").Eq(18))),
 			wantQuerry: &Query{
-				SQL:  "SELECT * FORM `test_model`;",
+				SQL:  "SELECT * FROM `test_model`;",
 				Args: nil,
 			},
 			wantErr: errs.NewErrUnknownField("jkd"),
@@ -265,7 +265,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "multiple columns ",
 			q:    NewSelector[TestModel](db).Select(C("FirstName"), C("LastName")),
 			wantRes: &Query{
-				SQL: "SELECT `first_name`,`last_name` FORM `test_model`;",
+				SQL: "SELECT `first_name`,`last_name` FROM `test_model`;",
 			},
 		},
 
@@ -273,7 +273,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "multiple columns ",
 			q:    NewSelector[TestModel](db),
 			wantRes: &Query{
-				SQL: "SELECT * FORM `test_model`;",
+				SQL: "SELECT * FROM `test_model`;",
 			},
 		},
 
@@ -281,7 +281,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "multiple columns ",
 			q:    NewSelector[TestModel](db).Select(C("test_model")),
 			wantRes: &Query{
-				SQL: "SELECT `first_name`,`last_name` FORM `test_model`;",
+				SQL: "SELECT `first_name`,`last_name` FROM `test_model`;",
 			},
 			wantErr: errs.NewErrUnknownField("test_model"),
 		},
@@ -290,35 +290,35 @@ func TestSelector_Select(t *testing.T) {
 			name: "AVG ",
 			q:    NewSelector[TestModel](db).Select(Avg("Age")),
 			wantRes: &Query{
-				SQL: "SELECT AVG(`age`) FORM `test_model`;",
+				SQL: "SELECT AVG(`age`) FROM `test_model`;",
 			},
 		},
 		{
 			name: "SUM ",
 			q:    NewSelector[TestModel](db).Select(Sum("Age")),
 			wantRes: &Query{
-				SQL: "SELECT SUM(`age`) FORM `test_model`;",
+				SQL: "SELECT SUM(`age`) FROM `test_model`;",
 			},
 		},
 		{
 			name: "max ",
 			q:    NewSelector[TestModel](db).Select(Max("Age")),
 			wantRes: &Query{
-				SQL: "SELECT MAX(`age`) FORM `test_model`;",
+				SQL: "SELECT MAX(`age`) FROM `test_model`;",
 			},
 		},
 		{
 			name: "Min",
 			q:    NewSelector[TestModel](db).Select(Min("Age")),
 			wantRes: &Query{
-				SQL: "SELECT MIN(`age`) FORM `test_model`;",
+				SQL: "SELECT MIN(`age`) FROM `test_model`;",
 			},
 		},
 		{
 			name: "Min  error ",
 			q:    NewSelector[TestModel](db).Select(Min("Invalid")),
 			wantRes: &Query{
-				SQL: "SELECT MIN(`age`) FORM `test_model`;",
+				SQL: "SELECT MIN(`age`) FROM `test_model`;",
 			},
 			wantErr: errs.NewErrUnknownField("Invalid"),
 		},
@@ -327,7 +327,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "Count",
 			q:    NewSelector[TestModel](db).Select(Count("Age")),
 			wantRes: &Query{
-				SQL: "SELECT COUNT(`age`) FORM `test_model`;",
+				SQL: "SELECT COUNT(`age`) FROM `test_model`;",
 			},
 		},
 
@@ -335,14 +335,14 @@ func TestSelector_Select(t *testing.T) {
 			name: "Min AND MAX",
 			q:    NewSelector[TestModel](db).Select(Min("Age"), Sum("Age")),
 			wantRes: &Query{
-				SQL: "SELECT MIN(`age`),SUM(`age`) FORM `test_model`;",
+				SQL: "SELECT MIN(`age`),SUM(`age`) FROM `test_model`;",
 			},
 		},
 		{
 			name: "Raw",
 			q:    NewSelector[TestModel](db).Select(Raw("COUNT(DISTINCT `first_name`)")),
 			wantRes: &Query{
-				SQL: "SELECT COUNT(DISTINCT `first_name`) FORM `test_model`;",
+				SQL: "SELECT COUNT(DISTINCT `first_name`) FROM `test_model`;",
 			},
 		},
 
@@ -350,7 +350,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "Raw expression",
 			q:    NewSelector[TestModel](db).Where(Raw("`age` < ?", 18).AsPredicate()),
 			wantRes: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE (`age` < ?);",
+				SQL:  "SELECT * FROM `test_model` WHERE (`age` < ?);",
 				Args: []any{18},
 			},
 		},
@@ -359,7 +359,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "column alias",
 			q:    NewSelector[TestModel](db).Select(C("FirstName").As("my_name"), C("LastName")),
 			wantRes: &Query{
-				SQL: "SELECT `first_name` AS `my_name`,`last_name` FORM `test_model`;",
+				SQL: "SELECT `first_name` AS `my_name`,`last_name` FROM `test_model`;",
 			},
 		},
 
@@ -367,7 +367,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "avg alias",
 			q:    NewSelector[TestModel](db).Select(Avg("FirstName").As("avg_name"), C("LastName")),
 			wantRes: &Query{
-				SQL: "SELECT AVG(`first_name`) AS `avg_name`,`last_name` FORM `test_model`;",
+				SQL: "SELECT AVG(`first_name`) AS `avg_name`,`last_name` FROM `test_model`;",
 			},
 		},
 
@@ -375,7 +375,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "avg alias",
 			q:    NewSelector[TestModel](db).Where(C("Id").As("myid").Eq(1)),
 			wantRes: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE `id`=?;",
+				SQL:  "SELECT * FROM `test_model` WHERE `id`=?;",
 				Args: []any{1},
 			},
 		},
@@ -384,7 +384,7 @@ func TestSelector_Select(t *testing.T) {
 			name: "Raw expression",
 			q:    NewSelector[TestModel](db).Where(C("Id").Eq(Raw("`age`+?", 1))),
 			wantRes: &Query{
-				SQL:  "SELECT * FORM `test_model` WHERE `id`=(`age`+?);",
+				SQL:  "SELECT * FROM `test_model` WHERE `id`=(`age`+?);",
 				Args: []any{1},
 			},
 		},

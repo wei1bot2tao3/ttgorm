@@ -284,4 +284,5 @@ Gorm 的元数据
     Handler       代表在上下文中做点什么事情
     Middleware    连接不同的Handler
 
+    接入 查询容重
 

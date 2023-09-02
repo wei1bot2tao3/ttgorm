@@ -37,18 +37,20 @@ func NewSelector[T any](session Session) *Selector[T] {
 
 // Build 构建sql语句
 func (s *Selector[T]) Build() (*Query, error) {
-	var err error
-	s.model, err = s.r.Get(new(T))
-	if err != nil {
-		return nil, err
+	if s.model == nil {
+		var err error
+		s.model, err = s.r.Get(new(T))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	s.sb.WriteString("SELECT ")
-	if err = s.BuilderColumns(); err != nil {
+	if err := s.BuilderColumns(); err != nil {
 		return nil, err
 	}
 
-	s.sb.WriteString(" FORM ")
+	s.sb.WriteString(" FROM ")
 	if s.table == "" {
 
 		//我怎么把表名字拿到
@@ -226,8 +228,8 @@ func (s *Selector[T]) addArg(vals ...any) {
 
 }
 
-// Form 中间方法 要原封不懂返回 Selector 这个是添加表名
-func (s *Selector[T]) Form(table string) *Selector[T] {
+// From 中间方法 要原封不懂返回 Selector 这个是添加表名
+func (s *Selector[T]) From(table string) *Selector[T] {
 	s.table = table
 	return s
 }
@@ -251,18 +253,46 @@ func (s *Selector[T]) Where(ps ...Predicate) *Selector[T] {
 }
 
 func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
-	q, err := s.Build()
+
+	root := s.getHandler
+	for i := len(s.mdls) - 1; i >= 0; i-- {
+		root = s.mdls[i](root)
+	}
+
+	res := root(ctx, &QueryContext{
+		Type:    "SELECT",
+		Builder: s,
+		Model:   s.model,
+	})
+
+	if res.Result != nil {
+		return res.Result.(*T), res.Err
+	}
+	return nil, res.Err
+
+}
+
+var _ Handler = (&Selector[any]{}).getHandler
+
+func (s *Selector[T]) getHandler(ctx context.Context, qc *QueryContext) *QueryResult {
+	q, err := qc.Builder.Build()
 	if err != nil {
-		return nil, err
+		return &QueryResult{
+			Err: err,
+		}
 	}
 
 	rows, err := s.session.queryContext(ctx, q.SQL, q.Args...)
 
 	if err != nil {
-		return nil, err
+		return &QueryResult{
+			Err: err,
+		}
 	}
 	if !rows.Next() {
-		return nil, errs.ErrNoRows
+		return &QueryResult{
+			Err: errs.ErrNoRows,
+		}
 	}
 	//
 
@@ -270,65 +300,17 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 
 	tp := new(T)
 	// 怎么把 	valuer.Value() 和tp 关联在一起 使用一个工厂模式
-	creator := s.creator
 
-	val := creator(s.model, tp)
+	val := s.creator(s.model, tp)
 	err = val.SetColumns(rows)
 
 	// 接口定义好改造上层，用
-	return tp, err
+	return &QueryResult{
+		Err:    err,
+		Result: tp,
+	}
 
 }
-
-//func (s *Selector[T]) GetV2(ctx context.Context) (*T, error) {
-//	q, err := s.Build()
-//	if err != nil {
-//		return nil, err
-//	}
-//	db := s.db.db
-//	rows, err := db.QueryContext(ctx, q.SQL, q.Args...)
-//	if err != nil {
-//		return nil, err
-//	}
-//	if !rows.Next() {
-//		return nil, errs.ErrNoRows
-//	}
-//
-//	// 我现在拿到了查询的数据 我要把 我的数据库的数据 通过元数据 翻译成go的数据
-//	// 拿到了 查询结果的列名
-//	cs, err := rows.Columns()
-//	if err != nil {
-//		return nil, err
-//	}
-//	// 获取一个新的指向 T的结构体 go的数据
-//
-//	tp := new(T)
-//	// 创建一个切牌呢来存值 我先把他绑定好 因为rows.scan可以把值写进去
-//	var vals []any
-//	// 获取值的起始地址
-//	address := reflect.ValueOf(tp).UnsafePointer()
-//	// 我得判断一下 是不是匹配的
-//	for _, c := range cs {
-//
-//		filed, ok := s.model.ColumnMap[c]
-//		if !ok {
-//			return nil, errors.New("这个列和数据库有一个不匹配")
-//		}
-//
-//		// 计算偏移量 ➕起始字段的地址
-//		fieldAfddress := unsafe.Pointer(uintptr(address) + filed.Offset)
-//		val := reflect.NewAt(filed.Type, fieldAfddress)
-//		vals = append(vals, val.Interface())
-//	}
-//	// vals 所有的值都是 填好了
-//	// 现在只是翻译成元数据了 需要从元数据到 T
-//	err = rows.Scan(vals...)
-//
-//	//  把他和tp绑定
-//	//使用unsafe
-//
-//	return tp, nil
-//}
 
 func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {
 	q, err := s.Build()
