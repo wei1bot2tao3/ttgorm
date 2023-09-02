@@ -139,3 +139,7 @@ func TestTtTable(t *testing.T) {
 	fmt.Println(data)
 
 }
+
+func (s *InsertSuite) TearDownTest() {
+	orm.RawQuery[test.SimpleStruct](s.db, "TRUNCATE TABLE `simple_struct`").Exec(context.Background())
+}

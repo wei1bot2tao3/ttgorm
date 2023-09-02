@@ -187,11 +187,7 @@ func (i *Inserter[T]) Exec(ctx context.Context) Result {
 		}
 	}
 
-	root := i.execHandler
-	for a := len(i.mdls) - 1; a >= 0; a-- {
-		root = i.mdls[a](root)
-	}
-	res := root(ctx, &QueryContext{
+	res := exec(ctx, i.session, i.core, &QueryContext{
 		Type:    "INSERT",
 		Builder: i,
 		Model:   i.model,
@@ -204,29 +200,4 @@ func (i *Inserter[T]) Exec(ctx context.Context) Result {
 		err: err,
 		res: sqlRes,
 	}
-}
-
-var _ Handler = (&Inserter[any]{}).execHandler
-
-func (i *Inserter[T]) execHandler(ctx context.Context, qc *QueryContext) *QueryResult {
-	q, err := i.Build()
-	if err != nil {
-		return &QueryResult{
-			Err: err,
-			Result: Result{
-				err: err,
-			},
-		}
-
-	}
-
-	res, err := i.session.execContext(ctx, q.SQL, q.Args...)
-	return &QueryResult{
-		Err: err,
-		Result: Result{
-			err: err,
-			res: res,
-		},
-	}
-
 }

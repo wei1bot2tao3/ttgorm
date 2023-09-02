@@ -270,44 +270,6 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 	return nil, res.Err
 }
 
-func getHandler[T any](ctx context.Context, session Session, c core, qc *QueryContext) *QueryResult {
-	q, err := qc.Builder.Build()
-	if err != nil {
-		return &QueryResult{
-			Err: err,
-		}
-	}
-
-	rows, err := session.queryContext(ctx, q.SQL, q.Args...)
-
-	if err != nil {
-		return &QueryResult{
-			Err: err,
-		}
-	}
-	if !rows.Next() {
-		return &QueryResult{
-			Err: errs.ErrNoRows,
-		}
-	}
-	//
-
-	// 我现在拿到了查询的数据 我要把 我的数据库的数据 通过元数据 翻译成go的数据
-
-	tp := new(T)
-	// 怎么把 	valuer.Value() 和tp 关联在一起 使用一个工厂模式
-
-	val := c.creator(c.model, tp)
-	err = val.SetColumns(rows)
-
-	// 接口定义好改造上层，用
-	return &QueryResult{
-		Err:    err,
-		Result: tp,
-	}
-
-}
-
 func (s *Selector[T]) GetMulti(ctx context.Context) (*[]T, error) {
 	q, err := s.Build()
 	if err != nil {

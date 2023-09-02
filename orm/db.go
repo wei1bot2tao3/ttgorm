@@ -3,6 +3,8 @@ package orm
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"log"
 	"ttgorm/orm/internal/errs"
 	"ttgorm/orm/internal/valuer"
 	"ttgorm/orm/model"
@@ -157,4 +159,13 @@ func (db *DB) DoTx(ctx context.Context, fn func(ctx context.Context, tx *Tx) err
 	panicked = false
 	return err
 
+}
+
+func (db *DB) Wait() error {
+	err := db.db.Ping()
+	for err == driver.ErrBadConn {
+		log.Println("数据库启动中")
+		err = db.db.Ping()
+	}
+	return nil
 }

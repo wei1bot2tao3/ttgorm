@@ -1,6 +1,9 @@
 package orm
 
-import "context"
+import (
+	"context"
+	"database/sql"
+)
 
 // RawQuerier 实现原生查询
 type RawQuerier[T any] struct {
@@ -10,17 +13,20 @@ type RawQuerier[T any] struct {
 	aegs    []any
 }
 
-func (s *RawQuerier[T]) Build() (*Query, error) {
+func (s RawQuerier[T]) Build() (*Query, error) {
 	return &Query{
 		SQL:  s.sql,
 		Args: s.aegs,
 	}, nil
 }
 
-func RawQuery[T any](query string, args ...any) *RawQuerier[T] {
+func RawQuery[T any](sess Session, query string, args ...any) *RawQuerier[T] {
+	c := sess.getCore()
 	return &RawQuerier[T]{
-		sql:  query,
-		aegs: args,
+		sql:     query,
+		aegs:    args,
+		session: sess,
+		core:    c,
 	}
 }
 
@@ -43,43 +49,58 @@ func (s *RawQuerier[T]) Get(ctx context.Context) (*T, error) {
 	return nil, res.Err
 
 }
-func get[T any](ctx context.Context, sess Session, c core, qc *QueryContext) *QueryResult {
 
-	var root Handler = func(ctx context.Context, qc *QueryContext) *QueryResult {
-		return getHandler[T](ctx, sess, c, qc)
-	}
-	for i := len(c.mdls) - 1; i >= 0; i-- {
-		root = c.mdls[i](root)
-	}
-
-	return root(ctx, qc)
-
-}
-
-//
-//func (s *RawQuerier[T]) Get(ctx context.Context) (*T, error) {
+//func (i RawQuerier[T]) Exec(ctx context.Context) Result {
 //	var err error
-//	s.model, err = s.r.Get(new(T))
+//	i.model, err = i.r.Get(new(T))
 //	if err != nil {
-//		return nil, err
+//		return Result{
+//			err: err,
+//		}
 //	}
 //
-//	var root Handler = func(ctx context.Context, qc *QueryContext) *QueryResult {
-//		return getHandler[T](ctx,s.session,s.core,qc)
-//	}
-//	for i := len(s.mdls) - 1; i >= 0; i-- {
-//		root = s.mdls[i](root)
-//	}
-//
-//	res := root(ctx, &QueryContext{
-//		Type:    "RAW",
-//		Builder: s,
-//		Model:   s.model,
-//	})
-//
+//	res := exec(ctx, i.session, i.core, &QueryContext{
+//		Type: "RAW",
+//		Builder: i,
+//		Model: i.model,
+//	} )
+//	var sqlRes sql.Result
 //	if res.Result != nil {
-//		return res.Result.(*T), res.Err
+//		sqlRes = res.Result.(sql.Result)
 //	}
-//	return nil, res.Err
-//
+//	return Result{
+//		err: err,
+//		res: sqlRes,
+//	}
 //}
+
+//
+
+func (i RawQuerier[T]) Exec(ctx context.Context) Result {
+	var err error
+	i.model, err = i.r.Get(new(T))
+	if err != nil {
+		return Result{
+			err: err,
+		}
+	}
+
+	res := exec(ctx, i.session, i.core, &QueryContext{
+		Type:    "RAW",
+		Builder: i,
+		Model:   i.model,
+	})
+	// var t *T
+	// if val, ok := res.Result.(*T); ok {
+	// 	t = val
+	// }
+	// return t, res.Err
+	var sqlRes sql.Result
+	if res.Result != nil {
+		sqlRes = res.Result.(sql.Result)
+	}
+	return Result{
+		err: res.Err,
+		res: sqlRes,
+	}
+}
