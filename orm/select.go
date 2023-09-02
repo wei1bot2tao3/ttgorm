@@ -253,13 +253,12 @@ func (s *Selector[T]) Where(ps ...Predicate) *Selector[T] {
 }
 
 func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
-
-	root := s.getHandler
-	for i := len(s.mdls) - 1; i >= 0; i-- {
-		root = s.mdls[i](root)
+	var err error
+	s.model, err = s.r.Get(new(T))
+	if err != nil {
+		return nil, err
 	}
-
-	res := root(ctx, &QueryContext{
+	res := get[T](ctx, s.session, s.core, &QueryContext{
 		Type:    "SELECT",
 		Builder: s,
 		Model:   s.model,
@@ -269,12 +268,9 @@ func (s *Selector[T]) Get(ctx context.Context) (*T, error) {
 		return res.Result.(*T), res.Err
 	}
 	return nil, res.Err
-
 }
 
-var _ Handler = (&Selector[any]{}).getHandler
-
-func (s *Selector[T]) getHandler(ctx context.Context, qc *QueryContext) *QueryResult {
+func getHandler[T any](ctx context.Context, session Session, c core, qc *QueryContext) *QueryResult {
 	q, err := qc.Builder.Build()
 	if err != nil {
 		return &QueryResult{
@@ -282,7 +278,7 @@ func (s *Selector[T]) getHandler(ctx context.Context, qc *QueryContext) *QueryRe
 		}
 	}
 
-	rows, err := s.session.queryContext(ctx, q.SQL, q.Args...)
+	rows, err := session.queryContext(ctx, q.SQL, q.Args...)
 
 	if err != nil {
 		return &QueryResult{
@@ -301,7 +297,7 @@ func (s *Selector[T]) getHandler(ctx context.Context, qc *QueryContext) *QueryRe
 	tp := new(T)
 	// 怎么把 	valuer.Value() 和tp 关联在一起 使用一个工厂模式
 
-	val := s.creator(s.model, tp)
+	val := c.creator(c.model, tp)
 	err = val.SetColumns(rows)
 
 	// 接口定义好改造上层，用

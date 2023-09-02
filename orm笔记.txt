@@ -285,4 +285,8 @@ Gorm 的元数据
     Middleware    连接不同的Handler
 
     接入 查询容重
+    集成测试
+    环节单元测试 集成测试 系统测试
 
+    TestSuite
+    有各种钩子 提供隔离

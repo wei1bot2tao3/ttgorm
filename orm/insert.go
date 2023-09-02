@@ -209,18 +209,24 @@ func (i *Inserter[T]) Exec(ctx context.Context) Result {
 var _ Handler = (&Inserter[any]{}).execHandler
 
 func (i *Inserter[T]) execHandler(ctx context.Context, qc *QueryContext) *QueryResult {
-	q, err := qc.Builder.Build()
+	q, err := i.Build()
 	if err != nil {
 		return &QueryResult{
 			Err: err,
+			Result: Result{
+				err: err,
+			},
 		}
 
 	}
 
 	res, err := i.session.execContext(ctx, q.SQL, q.Args...)
 	return &QueryResult{
-		Err:    err,
-		Result: res,
+		Err: err,
+		Result: Result{
+			err: err,
+			res: res,
+		},
 	}
 
 }
