@@ -91,7 +91,9 @@ func (s sqlite3Dialect) buildUpsert(b *builder, upsert *Upsert) error {
 			b.sb.WriteByte(',')
 
 		}
-		err := b.buildColumn(col)
+		err := b.buildColumn(Column{
+			name: col,
+		})
 		if err != nil {
 			return err
 		}

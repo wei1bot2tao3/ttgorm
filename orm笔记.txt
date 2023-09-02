@@ -190,7 +190,7 @@ Gorm 的元数据
 
     事物API
     tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-    	require.NoError(t, err)
+    	require.NoError(j, err)
     	    // 提交事物
         	tx.Commit()
         	//回滚
@@ -290,3 +290,11 @@ Gorm 的元数据
 
     TestSuite
     有各种钩子 提供隔离
+
+
+    TableReference 抽象
+    Join 普通的表
+    Join代表Join查询
+    Subquery 子查询
+
+

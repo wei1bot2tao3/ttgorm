@@ -5,30 +5,30 @@ type Expression interface {
 	expr()
 }
 
-// RowExpr 代表了原始表达式
+// RawExpr 代表了原始表达式
 // 意味着 ORM对他不会有任何处理
-type RowExpr struct {
+type RawExpr struct {
 	raw  string
 	args []any
 }
 
-func (r RowExpr) selectable() {
+func (r RawExpr) selectable() {
 
 }
 
 // Raw 创建一个RawExpr
-func Raw(expr string, args ...any) RowExpr {
-	return RowExpr{
+func Raw(expr string, args ...any) RawExpr {
+	return RawExpr{
 		raw:  expr,
 		args: args,
 	}
 }
-func (r RowExpr) expr() {
+func (r RawExpr) expr() {
 
 }
 
 // AsPredicate  让他本身作为一个Predicate
-func (r RowExpr) AsPredicate() Predicate {
+func (r RawExpr) AsPredicate() Predicate {
 	return Predicate{
 		left: r,
 	}
